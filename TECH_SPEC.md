@@ -103,6 +103,15 @@ type Suggestion = {
 
 Editor transaction mapping/decorations may remap ranges after edits, but **mapping is not sufficient** for safe acceptance. Before applying, verify active document, live mapped range, unchanged source text, and compatible boundaries. If any condition fails, mark stale and ask the user to rerun. Accept is one atomic undoable transaction and schedules a save. Reject removes annotation without mutating document content. For cross-block selections, ensure result can be represented by allowed editor nodes; otherwise reject as unsupported or provide a safe preview path. Avoid injecting provider-returned HTML. ProseMirror supports mapped decorations to maintain annotations across transactions (https://prosemirror.net/docs/guide/).
 
+### WD-003 spike result (2026-10-09): GO
+Implementation: `src/editor/suggestions.ts` (a Tiptap extension wrapping a ProseMirror plugin); tests: `src/editor/suggestions.test.ts`.
+
+- **Separate state:** suggestions live only in plugin state. The document, and therefore the serialized Markdown, is identical before Accept. Display uses decorations: `<del>` over the original and an `<ins>` widget for the proposal. These give a strikethrough/underline cue that doesn't depend on color, plus semantics for assistive tech.
+- **Lifecycle:** `startSuggestion` freezes the selection as a `pending` target *before* the request is sent. `resolveSuggestion` attaches the response, `acceptSuggestion` applies it and `rejectSuggestion` drops it. A response can only attach to a target that is still `pending`.
+- **Stale protection:** every document-changing transaction remaps each target. Edges are exclusive, so typing next to a target doesn't extend it. The live text is then compared with the frozen `original`, and a mismatch marks the target `stale` permanently. Accept re-verifies the range is in one textblock, the text is unchanged and the document ID matches. `setSuggestionDocument` drops everything on a document switch. A newer overlapping request stales older ones. This replaces the proposed `hash` and `revision` fields: comparing the original text directly is stricter than a hash and needs no revision counter.
+- **Accept:** one `insertText` transaction, so a single undo restores the original. Surrounding marks are kept. The caret is mapped, not moved.
+- **Limits:** only selections within a single textblock are accepted. Cross-block targets return `null`, as §6 allows. The proposal is plain text, so formatting inside the replaced range takes the mark at its start. Token-level diff highlighting is deferred to WD-009; the spike shows whole-range remove/add.
+
 ## 7. Contextual target selection
 1. If text selection is nonempty, use the selected range, subject to size limits.
 2. Otherwise resolve a sentence around the caret using locale-aware segmentation where available (`Intl.Segmenter` as a candidate), then apply explicit boundary tests for punctuation, abbreviations, quotations, lists, and Markdown blocks.
