@@ -3,12 +3,12 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- WD-001 complete on branch `wd-001-scaffold`, PR #1 (planning docs committed there).
+- WD-001 complete and merged (PR #1). WD-002 complete on branch `wd-002-markdown-spike`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
-| M0 Foundation and spikes | WD-001 to WD-003 | In progress | WD-001 complete (PR #1) |
+| M0 Foundation and spikes | WD-001 to WD-003 | In progress | WD-001 merged (PR #1); WD-002 complete |
 | M1 Offline editor | WD-004 to WD-006 | Not started | None |
 | M2 Explicit AI | WD-007 to WD-009 | Not started | None |
 | M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
@@ -17,7 +17,7 @@
 | Task | Title | Status | Validation evidence |
 |---|---|---|---|
 | WD-001 | Repository/toolchain/CI initialization | Complete | Local gates exit 0; CI run 38003203895 pass |
-| WD-002 | Markdown fidelity spike | Not started | Not executed |
+| WD-002 | Markdown fidelity spike | Complete | 29/29 tests pass; GO decision in TECH_SPEC §4 |
 | WD-003 | Inline suggestion safety spike | Not started | Not executed |
 | WD-004 | Visual editor and formatting | Not started | Not executed |
 | WD-005 | Multi-document storage and autosave | Not started | Not executed |
@@ -38,12 +38,14 @@
 | 2026-10-09 | WD-001 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local, Node 24.8.0, pnpm 9.0.6 | Commit 490d3e5 |
 | 2026-10-09 | WD-001 | `pnpm test` | exit 0, 2/2 passed | Local | `server/app.test.ts` health + 404 |
 | 2026-10-09 | WD-001 | `pnpm dev` + `node server/index.ts`, curl `/` and `/api/health` | Homepage served; proxy returned `{"status":"ok"}` | Local | Manual smoke |
+| 2026-10-09 | WD-002 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-002-markdown-spike |
+| 2026-10-09 | WD-002 | `pnpm test` | exit 0, 29/29 passed (3 files) | Local | 16 round-trip fixtures, 7 unsupported-syntax cases, 2 unsafe-HTML tests |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
 | ID | Decision | Proposed answer | Gate | Status |
 |---|---|---|---|---|
-| DOC-001 | Markdown import/export P0 | Include | WD-006 | Owner confirmation pending |
+| DOC-001 | Markdown import/export P0 | Include; unsupported syntax shows a warning | WD-006 | Confirmed by owner 2026-10-09 |
 | SEC-001 | Private-beta auth | Managed sign-in plus server-side allowlist | WD-007 / WD-012 | Open |
 | SEC-002 | Hosted AI budgets | Per-user and global configurable limits | WD-007 / WD-012 | Open |
 | UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
@@ -54,6 +56,13 @@
 - Status: complete. Requirements: NFR-001, NFR-002, NFR-005, NFR-008, TECH-001.
 - Versions: React 19.3, Vite 8.3, Hono 4.13, TypeScript 6.0.3 (pinned below 7: typescript-eslint 8.71 peer range is <6.1), Vitest 5.0, ESLint 10.
 - Limitations: no frontend unit test (jsdom/testing-library deferred to WD-004); no production server serving `dist/` (hosting undecided); `test:integration`, `test:e2e`, `test:a11y` not configured.
+
+## WD-002 record
+- Status: complete. Decision: GO on Tiptap 3.31.4 + `@tiptap/markdown` (see TECH_SPEC §4 "WD-002 spike result").
+- Requirements: FR-001, FR-002, FR-005; BR-006.
+- Changed files: `src/editor/markdown.ts`, `src/editor/markdown.test.ts`, `src/editor/markdown.dom.test.ts`, package.json/lockfile, TECH_SPEC.md, PROGRESS.md.
+- Limitations: browser HTML handling verified under happy-dom, not a real browser yet (WD-011 browser smoke). The corpus tests the converter, not the interactive editor (WD-004).
+- Repair attempts: one each for code-in-link, nested fences and footnote detection. All three fixed.
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
