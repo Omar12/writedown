@@ -47,6 +47,15 @@ These are conceptual areas, not asserted repository files or required directory 
 
 **Validation spike before commitment:** verify Tiptap Markdown parser/serializer license/version/API; run a fixture-based round-trip corpus; confirm visual editor extensions have matching Markdown serializers; test soft/hard breaks, nested marks, link punctuation, Unicode and multi-paragraph selections. Tiptap documents that Markdown representation has limits and should not be treated as lossless rich-text conversion (https://tiptap.dev/docs/editor/markdown).
 
+### WD-002 spike result (2026-10-09): GO
+Editor: Tiptap 3.31.4 (`@tiptap/core`, `@tiptap/starter-kit`, `@tiptap/markdown`, `@tiptap/pm`, `@tiptap/extension-code`, `@tiptap/extension-code-block`), all MIT. `@tiptap/markdown` parses with `marked` 17 (MIT). Owner approved Tiptap on 2026-10-09. Implementation: `src/editor/markdown.ts`; corpus: `src/editor/markdown.test.ts`, `src/editor/markdown.dom.test.ts`.
+
+- **Round-trip:** every supported construct above, plus nesting, Unicode, escaping, link punctuation and hard breaks, survives parse → serialize → parse with an identical editor document. Bytes are not preserved: `_i_` becomes `*i*`, and a backslash hard break becomes two trailing spaces.
+- **Upstream defects fixed locally:** (1) the code mark excluded all other marks, so `` [`x`](url) `` produced a schema-invalid document. It now excludes nothing. (2) The code block serializer always used a ``` fence, which corrupted code that contains ```. It now picks a fence longer than the longest backtick run.
+- **Also enabled:** strikethrough and horizontal rule. They are outside the list but round-trip losslessly. Underline is disabled because it has no Markdown syntax.
+- **Unsupported-syntax policy (owner decision: warn):** `parseMarkdown` returns `warnings` for `table`, `html`, `image`, `footnote` and `taskList`. Observed losses without the warning: tables are dropped entirely, images become bare alt text, footnotes become a bogus link, and task items lose their checkbox. WD-006 must show these warnings to the user on import.
+- **HTML safety:** without a DOM, HTML stays literal text and serializes escaped (`&lt;script&gt;`). In a browser, `@tiptap/markdown` parses recognized HTML through the schema with `DOMParser`. Script, image and event-handler attributes are discarded, and nothing executes (verified under happy-dom, not yet in a real browser).
+
 ## 5. Local data model
 Proposed IndexedDB database `writer-local`, with versioned migrations.
 

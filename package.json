@@ -19,6 +19,12 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.4",
+		"@tiptap/core": "3.31.4",
+		"@tiptap/extension-code": "3.31.4",
+		"@tiptap/extension-code-block": "3.31.4",
+		"@tiptap/markdown": "3.31.4",
+		"@tiptap/pm": "3.31.4",
+		"@tiptap/starter-kit": "3.31.4",
 		"hono": "^4.13.13",
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0"
@@ -32,6 +38,7 @@
 		"eslint": "^10.12.0",
 		"eslint-plugin-react-hooks": "^7.1.1",
 		"globals": "^17.13.0",
+		"happy-dom": "^20.14.6",
 		"prettier": "^3.9.9",
 		"typescript": "~6.0.3",
 		"typescript-eslint": "^8.71.1",
