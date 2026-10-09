@@ -18,7 +18,7 @@
 |---|---|---|---|
 | WD-001 | Repository/toolchain/CI initialization | Complete | Local gates exit 0; CI run 38003203895 pass |
 | WD-002 | Markdown fidelity spike | Complete | 29/29 tests pass; GO decision in TECH_SPEC §4 |
-| WD-003 | Inline suggestion safety spike | Complete | 16 suggestion tests pass (45 total); GO in TECH_SPEC §6 |
+| WD-003 | Inline suggestion safety spike | Complete | 23 suggestion + 9 diff tests pass (61 total); GO in TECH_SPEC §6 |
 | WD-004 | Visual editor and formatting | Not started | Not executed |
 | WD-005 | Multi-document storage and autosave | Not started | Not executed |
 | WD-006 | Markdown import/export | Not started | Not executed |
@@ -43,6 +43,7 @@
 | 2026-10-09 | WD-003 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-003-suggestion-spike |
 | 2026-10-09 | WD-003 | `pnpm test` | exit 0, 45/45 passed (4 files) | Local | 16 new suggestion tests in happy-dom |
 | 2026-10-09 | WD-003 | Mutation: verification disabled | 3 tests fail as expected; file restored | Local | Confirms stale guard coverage |
+| 2026-10-09 | WD-003 | `pnpm test` after formatting/history follow-up | exit 0, 61/61 passed (5 files); format:check/lint/typecheck/build exit 0 | Local | Mutation: whole-range accept fails 3 formatting tests |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -70,9 +71,10 @@
 ## WD-003 record
 - Status: complete. Decision: GO (see TECH_SPEC §6 "WD-003 spike result").
 - Requirements: FR-009; BR-001, BR-002, BR-003.
-- Changed files: `src/editor/suggestions.ts`, `src/editor/suggestions.test.ts`, TECH_SPEC.md, PROGRESS.md.
+- Changed files: `src/editor/suggestions.ts`, `src/editor/suggestions.test.ts`, `src/editor/diff.ts`, `src/editor/diff.test.ts`, TECH_SPEC.md, PROGRESS.md.
+- Follow-up (owner request): Accept preserves formatting on unchanged words (word diff), and each Accept records the original content with its marks in session history.
 - Acceptance: Markdown unchanged before accept (tested); one undo restores the original after accept (tested); stale requests cannot apply after an edit inside the target, deletion, document switch or a newer overlapping request (tested); reordered delayed responses apply correctly (tested); caret is not moved by a response (tested).
-- Mutation check: disabling the live-text verification makes 3 stale-response tests fail, so the guard is exercised.
+- Mutation checks: disabling the live-text verification makes 3 stale-response tests fail. Reverting Accept to whole-range replacement makes 3 formatting tests fail.
 - Limitations: tests run in happy-dom, not a real browser. Single-textblock targets only. No token-level diff yet (WD-009). Screen-reader announcement of `<ins>`/`<del>` is not yet verified manually (WD-011).
 - Repair attempts: 1 (test-side: an insert landed on the exclusive range edge; the test was wrong, not the code).
 

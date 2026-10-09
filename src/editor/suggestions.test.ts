@@ -5,6 +5,7 @@ import { extensions, parseMarkdown, serializeMarkdown } from './markdown.ts';
 import {
 	Suggestions,
 	acceptSuggestion,
+	getSuggestionHistory,
 	getSuggestions,
 	rejectSuggestion,
 	resolveSuggestion,
@@ -27,19 +28,32 @@ function setup(md: string, documentId = 'doc-a') {
 
 const md = () => serializeMarkdown(editor.getJSON());
 
-/** Document position where `text` starts (searches text nodes). */
-function pos(text: string): number {
-	let found = -1;
-	editor.state.doc.descendants((node, p) => {
-		if (found < 0 && node.isText && node.text!.includes(text)) found = p + node.text!.indexOf(text);
+/** Document range of `text`, which may span marks and hard breaks ("\n") within one block. */
+function range(text: string): { from: number; to: number } {
+	let found: { from: number; to: number } | null = null;
+	editor.state.doc.descendants((block, blockPos) => {
+		if (found || !block.isTextblock) return !found;
+		let chars = '';
+		const pos: number[] = [];
+		block.forEach((child, offset) => {
+			const p = blockPos + 1 + offset;
+			const text = child.isText ? child.text! : '\n';
+			chars += text;
+			for (let k = 0; k < text.length; k++) pos.push(p + k);
+		});
+		pos.push(blockPos + block.nodeSize - 1);
+		const i = chars.indexOf(text);
+		if (i >= 0) found = { from: pos[i], to: pos[i + text.length - 1] + 1 };
+		return false;
 	});
-	if (found < 0) throw new Error(`text not found: ${text}`);
+	if (!found) throw new Error(`text not found: ${text}`);
 	return found;
 }
 
+const pos = (text: string) => range(text).from;
+
 function select(text: string) {
-	const from = pos(text);
-	editor.commands.setTextSelection({ from, to: from + text.length });
+	editor.commands.setTextSelection(range(text));
 }
 
 function request(text: string, id: string) {
@@ -217,6 +231,99 @@ describe('stale responses cannot apply', () => {
 		expect(acceptSuggestion(editor, 'b')).toBe(true);
 		expect(acceptSuggestion(editor, 'a')).toBe(true);
 		expect(md()).toBe('The idea is good.\n\nShe goes home.');
+	});
+});
+
+describe('formatting is preserved on accept', () => {
+	function acceptRewrite(source: string, target: string, proposed: string) {
+		setup(source);
+		request(target, 's1');
+		resolveSuggestion(editor, 's1', proposed);
+		expect(acceptSuggestion(editor, 's1')).toBe(true);
+		return md();
+	}
+
+	test('link and bold in the middle of a rewritten sentence survive', () => {
+		expect(
+			acceptRewrite(
+				'Their is a [great guide](https://e.com) that **really** help.',
+				'Their is a great guide that really help.',
+				'There is a great guide that really helps.',
+			),
+		).toBe('There is a [great guide](https://e.com) that **really** helps.');
+	});
+
+	test('replacing a word inside a link keeps the link', () => {
+		expect(
+			acceptRewrite('Read [the docs](https://e.com) now.', 'the docs', 'the documentation'),
+		).toBe('Read [the documentation](https://e.com) now.');
+	});
+
+	test('text inserted right after a link or bold does not extend it', () => {
+		expect(
+			acceptRewrite('See [docs](https://e.com) now.', 'See docs now.', 'See docs right now.'),
+		).toBe('See [docs](https://e.com) right now.');
+		expect(acceptRewrite('A **bold** end', 'A bold end', 'A bold new end')).toBe(
+			'A **bold** new end',
+		);
+	});
+
+	test('inline code and hard breaks survive', () => {
+		expect(
+			acceptRewrite(
+				'Run `pnpm test` befor  \npushing.',
+				'Run pnpm test befor\npushing.',
+				'Run pnpm test before\npushing.',
+			),
+		).toBe('Run `pnpm test` before  \npushing.');
+	});
+
+	test('formatting-preserving accept is still one undo step', () => {
+		const before = 'Their is a [great guide](https://e.com) that **really** help.';
+		acceptRewrite(
+			before,
+			'Their is a great guide that really help.',
+			'There is a great guide that really helps.',
+		);
+		editor.commands.undo();
+		expect(md()).toBe(before);
+	});
+});
+
+describe('history of original state', () => {
+	test('accept records original content with formatting', () => {
+		setup('Their is a [guide](https://e.com) that **really** help.');
+		request('Their is a guide that really help.', 's1');
+		resolveSuggestion(editor, 's1', 'There is a guide that really helps.');
+		acceptSuggestion(editor, 's1');
+
+		const [entry] = getSuggestionHistory(editor);
+		expect(entry).toMatchObject({
+			id: 's1',
+			documentId: 'doc-a',
+			originalText: 'Their is a guide that really help.',
+			proposed: 'There is a guide that really helps.',
+		});
+		expect(Date.parse(entry.acceptedAt)).not.toBeNaN();
+		// Original inline nodes can rebuild the exact pre-AI Markdown.
+		const restored = serializeMarkdown({
+			type: 'doc',
+			content: [{ type: 'paragraph', content: entry.original }],
+		});
+		expect(restored).toBe('Their is a [guide](https://e.com) that **really** help.');
+	});
+
+	test('reject, stale and refused accepts record nothing; history survives document switch', () => {
+		setup('The ideas is good. She go home.');
+		request('ideas is', 'r');
+		resolveSuggestion(editor, 'r', 'idea is');
+		rejectSuggestion(editor, 'r');
+		request('She go', 'a');
+		resolveSuggestion(editor, 'a', 'She goes');
+		acceptSuggestion(editor, 'a');
+		expect(acceptSuggestion(editor, 'a')).toBe(false);
+		setSuggestionDocument(editor, 'doc-b');
+		expect(getSuggestionHistory(editor).map((e) => e.id)).toEqual(['a']);
 	});
 });
 
