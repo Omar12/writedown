@@ -1,8 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('keyboard-only writing journey', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
 	await page.goto('/');
+	await page.getByRole('button', { name: 'New document' }).click();
+});
+
+test('keyboard-only writing journey', async ({ page }) => {
 	const doc = page.getByRole('textbox', { name: 'Document' });
 	await doc.click();
 
@@ -39,7 +43,6 @@ test('keyboard-only writing journey', async ({ page }) => {
 });
 
 test('selection shows the bubble menu', async ({ page }) => {
-	await page.goto('/');
 	const doc = page.getByRole('textbox', { name: 'Document' });
 	await doc.click();
 	await page.keyboard.type('Select these words');
@@ -52,7 +55,6 @@ test('selection shows the bubble menu', async ({ page }) => {
 });
 
 test('no serious or critical accessibility violations', async ({ page }) => {
-	await page.goto('/');
 	await page.getByRole('textbox', { name: 'Document' }).click();
 	await page.keyboard.type('Accessible text');
 	await page.keyboard.press('ControlOrMeta+k');

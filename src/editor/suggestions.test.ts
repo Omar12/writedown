@@ -313,7 +313,7 @@ describe('history of original state', () => {
 		expect(restored).toBe('Their is a [guide](https://e.com) that **really** help.');
 	});
 
-	test('reject, stale and refused accepts record nothing; history survives document switch', () => {
+	test('reject, stale and refused accepts record nothing', () => {
 		setup('The ideas is good. She go home.');
 		request('ideas is', 'r');
 		resolveSuggestion(editor, 'r', 'idea is');
@@ -322,8 +322,19 @@ describe('history of original state', () => {
 		resolveSuggestion(editor, 'a', 'She goes');
 		acceptSuggestion(editor, 'a');
 		expect(acceptSuggestion(editor, 'a')).toBe(false);
-		setSuggestionDocument(editor, 'doc-b');
 		expect(getSuggestionHistory(editor).map((e) => e.id)).toEqual(['a']);
+	});
+
+	test("history is per document: a switch loads that document's stored history", () => {
+		setup('She go home.');
+		request('She go', 'a');
+		resolveSuggestion(editor, 'a', 'She goes');
+		acceptSuggestion(editor, 'a');
+		const stored = getSuggestionHistory(editor);
+		setSuggestionDocument(editor, 'doc-b');
+		expect(getSuggestionHistory(editor)).toEqual([]);
+		setSuggestionDocument(editor, 'doc-a', stored);
+		expect(getSuggestionHistory(editor)).toEqual(stored);
 	});
 });
 

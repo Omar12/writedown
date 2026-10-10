@@ -196,3 +196,188 @@ main {
 		animation: none !important;
 	}
 }
+
+.toolbar-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* Switcher and save status share the first line; formatting buttons get their own. */
+.toolbar-row .toolbar {
+	flex-basis: 100%;
+	order: 1;
+}
+
+.toolbar-row .save-status {
+	margin-left: auto;
+}
+
+.switcher {
+	position: relative;
+}
+
+.switcher-trigger {
+	max-width: 14rem;
+	overflow: hidden;
+	padding: 0.25rem 0.5rem;
+	border: 1px solid var(--line);
+	border-radius: 0.375rem;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.switcher-panel {
+	position: absolute;
+	top: calc(100% + 0.25rem);
+	left: 0;
+	z-index: 2;
+	width: 18rem;
+	max-height: 60vh;
+	overflow-y: auto;
+	padding: 0.25rem;
+	border: 1px solid var(--line);
+	border-radius: 0.5rem;
+	background: var(--bg);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+.switcher-panel ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.switcher-panel li {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.switcher-panel button {
+	padding: 0.375rem 0.5rem;
+	border: 1px solid transparent;
+	border-radius: 0.375rem;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.switcher-panel button:hover {
+	background: var(--hover);
+}
+
+.switcher-new {
+	width: 100%;
+	color: var(--accent) !important;
+}
+
+.switcher-doc {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Current document: weight and a border, not color alone. */
+.switcher-doc[aria-current='true'] {
+	border-color: var(--accent) !important;
+	font-weight: 600;
+}
+
+.switcher-confirm {
+	flex-wrap: wrap;
+	padding: 0.375rem 0.5rem;
+}
+
+.switcher-confirm span {
+	flex-basis: 100%;
+}
+
+.save-status {
+	color: var(--muted);
+	font-size: 0.875rem;
+	white-space: nowrap;
+}
+
+.save-problem,
+.storage-banner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	color: #b3261e;
+	white-space: normal;
+}
+
+.save-problem button,
+.empty-state button,
+.scrim-card button {
+	padding: 0.25rem 0.75rem;
+	border: 1px solid currentColor;
+	border-radius: 0.375rem;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+	.save-problem,
+	.storage-banner {
+		color: #ff8a80;
+	}
+}
+
+.empty-state {
+	display: grid;
+	justify-items: center;
+	gap: 0.75rem;
+	padding-top: 30vh;
+	color: var(--muted);
+}
+
+.empty-state button {
+	color: var(--accent);
+}
+
+.scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	display: grid;
+	place-items: center;
+	background: rgb(0 0 0 / 0.45);
+	backdrop-filter: blur(2px);
+}
+
+.scrim-card {
+	display: grid;
+	justify-items: center;
+	gap: 1rem;
+	max-width: 24rem;
+	margin: 1rem;
+	padding: 1.5rem;
+	border-radius: 0.75rem;
+	background: var(--bg);
+	color: var(--fg);
+	text-align: center;
+	box-shadow: 0 8px 32px rgb(0 0 0 / 0.25);
+}
+
+.scrim-card p {
+	margin: 0;
+}
+
+.toolbar-row .link-box {
+	flex-basis: 100%;
+	order: 2;
+}
