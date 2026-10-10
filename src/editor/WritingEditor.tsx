@@ -11,6 +11,9 @@ import {
 	italic,
 	type FormatCommand,
 } from './commands.ts';
+import { AiMenu } from '../ai/AiMenu.tsx';
+import { SuggestionReview } from '../ai/SuggestionReview.tsx';
+import { useAi } from '../ai/useAi.ts';
 import { LinkBox } from './LinkBox.tsx';
 import { extensions, parseMarkdown } from './markdown.ts';
 import { setSuggestionDocument, Suggestions, type HistoryEntry } from './suggestions.ts';
@@ -42,6 +45,7 @@ export function WritingEditor({
 	trailing,
 }: Props) {
 	const [linkOpen, setLinkOpen] = useState(false);
+	const [aiOpen, setAiOpen] = useState(false);
 	const toolbarRef = useRef<HTMLDivElement>(null);
 
 	const link: FormatCommand = {
@@ -56,6 +60,10 @@ export function WritingEditor({
 	// Shortcuts are registered once at editor creation; both targets are stable.
 	const shortcuts = useRef({
 		openLink: () => setLinkOpen(true),
+		openAi: () => setAiOpen(true),
+		// Replaced below once the AI controller exists; returning false lets the key through.
+		dismissAi: (): boolean => false,
+		acceptAi: (): boolean => false,
 		focusToolbar: () => toolbarRef.current?.querySelector<HTMLElement>('[tabindex="0"]')?.focus(),
 	});
 
@@ -68,6 +76,11 @@ export function WritingEditor({
 				name: 'writedownShortcuts',
 				addKeyboardShortcuts: () => ({
 					'Mod-k': () => (shortcuts.current.openLink(), true),
+					// UX-001: Mod-j is preferred; Mod-/ always works where the browser keeps Mod-j.
+					'Mod-j': () => (shortcuts.current.openAi(), true),
+					'Mod-/': () => (shortcuts.current.openAi(), true),
+					'Mod-Enter': () => shortcuts.current.acceptAi(),
+					Escape: () => shortcuts.current.dismissAi(),
 					// Conventional rich-text shortcut to reach the toolbar from the text.
 					'Alt-F10': () => (shortcuts.current.focusToolbar(), true),
 				}),
@@ -87,6 +100,12 @@ export function WritingEditor({
 			onReady?.(editor);
 		},
 		onUpdate: ({ editor }) => onUpdateRef.current?.(editor),
+	});
+
+	const ai = useAi(editor);
+	useEffect(() => {
+		shortcuts.current.dismissAi = ai.dismiss;
+		shortcuts.current.acceptAi = ai.acceptReady;
 	});
 
 	const onUpdateRef = useRef(onUpdate);
@@ -111,6 +130,18 @@ export function WritingEditor({
 					ref={toolbarRef}
 					commands={[...inline, ...blockCommands, ...historyCommands]}
 				/>
+				<button
+					type="button"
+					className="ai-trigger"
+					aria-haspopup="dialog"
+					aria-expanded={aiOpen}
+					aria-keyshortcuts="Meta+J Control+J Meta+/ Control+/"
+					disabled={!editable}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={() => setAiOpen(true)}
+				>
+					✦ AI
+				</button>
 				{trailing}
 				{linkOpen && <LinkBox editor={editor} onClose={() => setLinkOpen(false)} />}
 			</div>
@@ -118,6 +149,11 @@ export function WritingEditor({
 				<Toolbar editor={editor} label="Selection formatting" commands={inline} />
 			</BubbleMenu>
 			<EditorContent editor={editor} />
+			{aiOpen && editable && <AiMenu editor={editor} ai={ai} onClose={() => setAiOpen(false)} />}
+			<SuggestionReview editor={editor} ai={ai} />
+			<p role="status" aria-label="AI status" className="ai-status">
+				{ai.status}
+			</p>
 		</div>
 	);
 }

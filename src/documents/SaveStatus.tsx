@@ -42,7 +42,7 @@ export function SaveStatus({ state, onRetry, onKeepMine, onLoadLatest, onExport 
 		);
 	}
 	return (
-		<div className="save-status" role="status">
+		<div className="save-status" role="status" aria-label="Save status">
 			{label[state]}
 		</div>
 	);

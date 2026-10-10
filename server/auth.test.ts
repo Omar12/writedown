@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { testApp } from './testing.ts';
+import { resendMailer } from './auth.ts';
 
 test('allowlisted email gets a link; others get the same 202 and no link', async () => {
 	const t = testApp();
@@ -32,6 +33,8 @@ test('GET on the link does not consume it (mail scanners); POST signs in once', 
 	const page = await t.request(path);
 	expect(page.status).toBe(200);
 	expect(page.headers.get('content-security-policy')).toContain("default-src 'none'");
+	// Without this, browsers post the form with "Origin: null" and the CSRF check rejects it.
+	expect(await page.text()).toContain('<meta name="referrer" content="same-origin">');
 	await t.request(path); // second prefetch
 	const token = new URL(t.links[0]).searchParams.get('token')!;
 	const verify = (tok: string) =>
@@ -83,4 +86,28 @@ test('cross-origin POSTs are refused', async () => {
 	});
 	expect(res.status).toBe(403);
 	expect(t.links).toHaveLength(0);
+});
+
+test('resendMailer posts the link to Resend and throws on a non-2xx reply', async () => {
+	const calls: [string, RequestInit][] = [];
+	let status = 200;
+	const fakeFetch = (async (url: string, init: RequestInit) => {
+		calls.push([url, init]);
+		return new Response('{}', { status });
+	}) as typeof fetch;
+	const mailer = resendMailer('re_test', 'Writedown <signin@example.com>', fakeFetch);
+	await mailer.sendSignInLink('alice@example.com', 'http://x/verify?token=abc');
+	const [url, init] = calls[0];
+	expect(url).toBe('https://api.resend.com/emails');
+	expect((init.headers as Record<string, string>).Authorization).toBe('Bearer re_test');
+	const body = JSON.parse(init.body as string);
+	expect(body.to).toEqual(['alice@example.com']);
+	expect(body.text).toContain('http://x/verify?token=abc');
+	status = 422;
+	await expect(mailer.sendSignInLink('alice@example.com', 'l')).rejects.toThrow('resend 422');
+});
+
+test('mail send failure still answers 202 (no allowlist leak)', async () => {
+	const t = testApp({ mailer: { sendSignInLink: async () => Promise.reject(new Error('down')) } });
+	expect((await t.postJson('/auth/request', { email: 'alice@example.com' })).status).toBe(202);
 });

@@ -1,22 +1,26 @@
 import { serve } from '@hono/node-server';
 import { createAnthropicProvider } from './ai/anthropic.ts';
+import { createOpenRouterProvider } from './ai/openrouter.ts';
 import { fakeProvider } from './ai/types.ts';
 import { createApp } from './app.ts';
-import { consoleMailer } from './auth.ts';
+import { consoleMailer, resendMailer } from './auth.ts';
 import { loadConfig } from './config.ts';
 import { openStore } from './store.ts';
 
 const config = loadConfig();
+const models = { modelProofread: config.modelProofread, modelCompose: config.modelCompose };
 const provider =
 	config.aiProvider === 'anthropic'
-		? createAnthropicProvider({
-				apiKey: config.anthropicApiKey!,
-				modelProofread: config.modelProofread,
-				modelCompose: config.modelCompose,
-			})
-		: fakeProvider;
-// No real email provider yet: development prints links; production refuses sign-in requests (503).
-const mailer = config.production ? null : consoleMailer;
+		? createAnthropicProvider({ apiKey: config.anthropicApiKey!, ...models })
+		: config.aiProvider === 'openrouter'
+			? createOpenRouterProvider({ apiKey: config.openrouterApiKey!, ...models })
+			: fakeProvider;
+// Resend when configured; otherwise development prints links and production refuses sign-in (503).
+const mailer = config.resendApiKey
+	? resendMailer(config.resendApiKey, config.mailFrom)
+	: config.production
+		? null
+		: consoleMailer;
 
 const app = createApp({ config, store: openStore(config.databasePath), provider, mailer });
 const port = Number(process.env.PORT ?? 8787);

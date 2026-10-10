@@ -47,7 +47,7 @@ const overlaps = (a: Suggestion, b: Suggestion) => a.from < b.to && b.from < a.t
  * Text of a single-textblock range plus the document position of every character
  * (and a final end position). Hard breaks read as "\n".
  */
-function readRange(doc: Node, from: number, to: number) {
+export function readRange(doc: Node, from: number, to: number) {
 	let text = '';
 	const pos: number[] = [];
 	doc.nodesBetween(from, to, (node, p) => {
@@ -136,20 +136,33 @@ function decorations(state: EditorState) {
 		if (s.status === 'pending')
 			return [Decoration.inline(s.from, s.to, { class: 'wd-suggestion-pending' })];
 		if (s.status !== 'ready') return [];
-		// <del>/<ins> give non-color cues (strikethrough/underline) and semantics for assistive tech.
-		return [
-			Decoration.inline(s.from, s.to, { nodeName: 'del', class: 'wd-suggestion-removed' }),
-			Decoration.widget(
-				s.to,
-				() => {
-					const ins = document.createElement('ins');
-					ins.className = 'wd-suggestion-added';
-					ins.textContent = s.proposed!;
-					return ins;
-				},
-				{ side: 1, key: `${s.id}:${s.proposed}` },
-			),
-		];
+		// Word-level: only changed words are marked. <del>/<ins> give non-color cues
+		// (strikethrough/underline) and semantics for assistive tech.
+		const { pos } = readRange(state.doc, s.from, s.to);
+		return diffText(s.original, s.proposed!).flatMap((h, k) => [
+			...(h.start < h.end
+				? [
+						Decoration.inline(pos[h.start], pos[h.end], {
+							nodeName: 'del',
+							class: 'wd-suggestion-removed',
+						}),
+					]
+				: []),
+			...(h.insert
+				? [
+						Decoration.widget(
+							pos[h.end],
+							() => {
+								const ins = document.createElement('ins');
+								ins.className = 'wd-suggestion-added';
+								ins.textContent = h.insert;
+								return ins;
+							},
+							{ side: 1, key: `${s.id}:${k}:${h.insert}` },
+						),
+					]
+				: []),
+		]);
 	});
 	return DecorationSet.create(state.doc, decos);
 }
@@ -189,13 +202,17 @@ export function setSuggestionDocument(
 }
 
 /**
- * Freeze the current selection as a suggestion target before sending the AI request.
- * Returns null for empty or cross-block selections (plain-text replacement can't represent those).
+ * Freeze a range (default: the selection) as a suggestion target before sending the AI request.
+ * Returns null for empty or cross-block ranges (plain-text replacement can't represent those).
  */
-export function startSuggestion(editor: Editor, id: string): Suggestion | null {
-	const { selection, doc } = editor.state;
-	if (selection.empty || !selection.$from.sameParent(selection.$to)) return null;
-	const { from, to } = selection;
+export function startSuggestion(
+	editor: Editor,
+	id: string,
+	range: { from: number; to: number } = editor.state.selection,
+): Suggestion | null {
+	const { doc } = editor.state;
+	const { from, to } = range;
+	if (from >= to || !doc.resolve(from).sameParent(doc.resolve(to))) return null;
 	const item: Suggestion = {
 		id,
 		documentId: suggestionKey.getState(editor.state)!.documentId,

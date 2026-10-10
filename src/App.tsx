@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { checkAccount } from './ai/api.ts';
 import { DocumentSwitcher } from './documents/DocumentSwitcher.tsx';
 import { ImportDialog, type ImportPrompt } from './documents/ImportDialog.tsx';
 import { ImportError, readMarkdownFile, type ParsedImport } from './documents/markdownFile.ts';
@@ -29,6 +30,11 @@ export function App() {
 		setPrompt(null);
 		await importDocument(parsed);
 	}
+
+	// Sign-in state for the switcher's "Sign out". Sends no document content.
+	useEffect(() => {
+		void checkAccount();
+	}, []);
 
 	// Export shortcut works wherever focus is. Shift+Mod+E, not Mod+S, so the browser's own save is untouched.
 	useEffect(() => {

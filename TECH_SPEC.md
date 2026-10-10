@@ -189,6 +189,15 @@ Authenticated and authorized; content type JSON.
 - **Logging:** one JSON line per request: request ID, action, outcome, latency, cost. No document text, prompts, outputs or emails (tested).
 - **State:** `node:sqlite` file (`DATABASE_PATH`) holding sign-in tokens, sessions, daily counters and monthly spend. It contains no document content. It is a single instance; `node:sqlite` is experimental in Node 24 and prints a warning at startup.
 
+### OpenRouter adapter (2026-10-09, owner request)
+`AI_PROVIDER=openrouter` with `OPENROUTER_API_KEY` and explicit `MODEL_PROOFREAD` / `MODEL_COMPOSE` OpenRouter ids (startup fails without them; the Claude defaults don't apply). `server/ai/openrouter.ts` calls the OpenAI-compatible `/api/v1/chat/completions` with `fetch` (no new dependency), sending the same system prompt, JSON-encoded user content and output schema as the Claude adapter, and validating with the same `parseOutput`. `provider.require_parameters` routes only to providers that honor `response_format` JSON schema; `provider.max_price` caps routing at $10 / $50 per million input/output tokens, which is also the rate used for the budget reservation. Settled cost is `usage.cost` from the response, or tokens at the cap when absent. Errors: 403 (moderation) and `content_filter`/refusal → `ai_declined`; other non-2xx, an `error` body or network failure → `upstream_unavailable`; abort or 30 s timeout → `upstream_timeout`; non-`stop` finish or invalid JSON → `upstream_invalid`. No live OpenRouter call has been made (no key).
+
+### WD-008/009 client (2026-10-09)
+- `src/editor/target.ts` resolves the target (selection, else caret sentence via `Intl.Segmenter` in the document locale) and up to 2,000 characters of context each side, matching the server limits.
+- `src/ai/useAi.ts` owns requests for one editor instance: `startSuggestion` freezes the target, the response goes through `resolveSuggestion`, and unmounting the editor (document switch) aborts all in-flight requests. Request ID = suggestion ID; the client rejects a response whose `requestId` differs.
+- The suggestions plugin now renders word-level hunks (`diffText`) instead of one whole-span replacement.
+- `/api/auth/me` is called on app load (no document content) and before each action; a 401 from `/ai/suggest` marks the account signed out.
+
 ## 9. Background proofreading state machine
 States: `disabled → eligible → idle_pending → request_pending → annotation_ready`, with cancel/reset paths to `eligible` or `disabled`.
 
@@ -206,10 +215,12 @@ Tests use fake clocks for three-second boundaries and delayed/reordered provider
 - Use HTTPS, authenticated sessions and server-side allowlist for the private beta, subject to SEC-001 approval. Frontend route hiding alone is not authorization.
 - AI provider key resides in server environment/secrets store, never delivered in JS bundles.
 - CSRF protections appropriate to auth design, strict same-site/cookie rules where applicable, CORS restrictions, secure headers, request body limits, timeout and bounded retries.
-- Rate-limit per account, cap input/output tokens, enforce per-user/global cost budgets and concurrent requests. Exact numerical thresholds blocked on SEC-002.
+- Rate-limit per account, cap input/output tokens, enforce per-user/global cost budgets and concurrent requests. Thresholds (SEC-002): 100 requests per user per UTC day, $10 per UTC month overall.
 - Import/export filenames and model text must be treated as untrusted; no unsanitized HTML execution, prototype pollution via parsed JSON, or evaluation of generated code.
 - Log metadata-only request IDs/error categories; no default document, prompt or provider-response logging.
 - Provide clear local-storage and AI-transmission disclosure. Do not claim local processing when hosted AI is used.
+- **AI disclosure (OPS-001, owner-confirmed 2026-10-09).** Shown once before the first AI request, and reachable later. Text: "Your documents stay in this browser. When you use AI, the selected text and a little surrounding context are sent to Anthropic's Claude to produce a suggestion. Anthropic keeps API data for up to 30 days and doesn't use it to train models. It may keep it for up to 2 years if its safety systems flag it, or when the law requires." Source: https://platform.claude.com/docs/en/manage-claude/api-and-data-retention. Revisit if the organization enables zero data retention.
+- **Sign-in mail (SEC-001):** Resend HTTP API (`resendMailer` in `server/auth.ts`), configured by `RESEND_API_KEY` and `MAIL_FROM`. A send failure is logged without the address and still answers 202, so the allowlist can't be probed.
 
 ## 11. Accessibility and desktop experience
 Target WCAG 2.2 AA. Keyboard: document list, toolbar, shortcut, menu navigation, selection, suggestion review/accept/reject, export. Maintain logical focus after menu close. Suggestion emphasis must not rely solely on red/green color; assistive technology must receive descriptive text. Respect reduced motion, 200% zoom and screen-reader announcements. Test shortcut collisions, including browser-reserved Ctrl+J.
