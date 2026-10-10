@@ -3,13 +3,13 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- M0 merged (PRs #1–#3). WD-004 complete on branch `wd-004-visual-editor`.
+- M0 merged (PRs #1–#3). WD-004 merged (PR #4). WD-005 complete on branch `wd-005-local-documents`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
 | M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
-| M1 Offline editor | WD-004 to WD-006 | In progress | WD-004 complete |
+| M1 Offline editor | WD-004 to WD-006 | In progress | WD-004 merged; WD-005 complete |
 | M2 Explicit AI | WD-007 to WD-009 | Not started | None |
 | M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
 
@@ -20,7 +20,7 @@
 | WD-002 | Markdown fidelity spike | Complete | 29/29 tests pass; GO decision in TECH_SPEC §4 |
 | WD-003 | Inline suggestion safety spike | Complete | 23 suggestion + 9 diff tests pass (61 total); GO in TECH_SPEC §6 |
 | WD-004 | Visual editor and formatting | Complete | 83 unit/component tests + 3 Chromium e2e (incl. axe) pass |
-| WD-005 | Multi-document storage and autosave | Not started | Not executed |
+| WD-005 | Multi-document storage and autosave | Complete | 104 unit + 8 Chromium e2e pass |
 | WD-006 | Markdown import/export | Not started | Not executed |
 | WD-007 | Authenticated AI service boundary | Not started | Not executed |
 | WD-008 | Context resolution and AI menu | Not started | Not executed |
@@ -48,6 +48,9 @@
 | 2026-10-09 | WD-004 | `pnpm test` | exit 0, 83/83 passed (6 files) | Local | 22 new component tests |
 | 2026-10-09 | WD-004 | `pnpm test:e2e` | exit 0, 3/3 passed | Local Chromium headless shell 156 | Keyboard journey, bubble menu, axe (no serious/critical, light + dark) |
 | 2026-10-09 | WD-004 | Visual screenshots light/dark | Reviewed | Local Chromium | Toolbar, bubble menu, link box render correctly |
+| 2026-10-09 | WD-005 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-005-local-documents |
+| 2026-10-09 | WD-005 | `pnpm test` | exit 0, 104/104 passed (8 files) | Local | IndexedDB via fake-indexeddb; autosave via fake timers |
+| 2026-10-09 | WD-005 | `pnpm test:e2e` | exit 0, 8/8 passed | Local Chromium | Reload, switch, delete, multi-tab scrim, quota failure, conflict |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -57,7 +60,7 @@
 | SEC-001 | Private-beta auth | Managed sign-in plus server-side allowlist | WD-007 / WD-012 | Open |
 | SEC-002 | Hosted AI budgets | Per-user and global configurable limits | WD-007 / WD-012 | Open |
 | UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
-| HIST-001 | Persist suggestion history with the document; add a "restore original" action | Ask again at WD-005 | WD-005 | Open |
+| HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
 | OPS-001 | Privacy/retention | Confirm provider settings and disclosure | WD-007 / WD-012 | Open |
 | TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting still open | WD-012 | Partially resolved |
 
@@ -91,6 +94,15 @@
 - Bugs found and fixed: (1) an empty document had no paragraph, leaving nothing to type into; (2) disabled undo/redo used `disabled`, which removed them from toolbar keyboard navigation, so they now use `aria-disabled`; (3) the editor's trailing empty paragraph serialized as extra blank lines.
 - Limitations: e2e runs on Chromium only (Firefox/WebKit/Edge in WD-011). IME composition relies on ProseMirror's native handling and is not yet tested with a real IME. Screen-reader spot-check is not yet done. Pasted rich text is normalized by the schema but has no dedicated test.
 - Repair attempts: Mod-K component test 3 (cause: a string replace silently missed after Prettier reformatted the file); bubble e2e 1 (Shift+Home doesn't select on macOS Chromium).
+
+## WD-005 record
+- Status: complete. Requirements: FR-003, FR-004; NFR-003, NFR-007.
+- Owner decisions (2026-10-09): switcher menu in the toolbar row; title from the first line; multi-tab = warning plus a scrim on the inactive tab; history saved beside the document and not exported.
+- Changed files: `src/documents/{db.ts,autosave.ts,tabs.ts,useWorkspace.ts,DocumentSwitcher.tsx,SaveStatus.tsx}` and tests, `src/editor/{WritingEditor.tsx,suggestions.ts}`, `src/App.tsx`, `src/index.css`, `e2e/{documents,editor}.spec.ts`, TECH_SPEC.md.
+- Acceptance: two documents persist independently over reload (e2e); delete requires confirmation (e2e); failed writes never show Saved and recover via Retry (unit + e2e with an injected QuotaExceededError); switching flushes and never writes to the wrong document (unit + e2e); a stale save warns instead of overwriting (unit + e2e without BroadcastChannel); a second tab shows the scrim and can take the document back (e2e).
+- Bugs found and fixed: (1) Tiptap `setEditable` emitted an update, so a tab being blocked saved and caused a false conflict in the other tab; (2) the switcher and scrim showed the stale title until reload; (3) a synchronous `put` failure surfaced as an uncaught error (now aborts the transaction and rejects).
+- Not done: rename is implicit (edit the first line), not a separate action. "Delete" has no undo. Firefox/WebKit not yet run (WD-011). Export as a backup arrives in WD-006, so the storage-error banner can't offer export yet.
+- Process note: string-replace edits twice silently missed after Prettier reformatted a file. The db.ts fix was later applied with the Edit tool and verified.
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.

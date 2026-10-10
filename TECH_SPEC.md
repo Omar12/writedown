@@ -79,6 +79,14 @@ type EditorSession = {
 
 `revision` identifies edit state within a live session; it is not a cross-device or persistent concurrent editing mechanism. Autosave must serialize the active revision, execute writes in order, and only mark a revision saved when its specific commit succeeds. Guard asynchronous `get`/`put` against stale document switches. Multiple tabs require either a single-writer coordination mechanism or detectable conflict with a clear user warning; do not silently overwrite a newer record. No browser-storage mechanism guarantees against manual data clearing. Where supported, consider requesting `navigator.storage.persist()` while clearly disclosing that export is the only user-controlled portable backup (https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist).
 
+### WD-005 implementation (2026-10-09)
+- **Storage:** database `writer-local` v1 with the `documents` store (`DocumentRecord` above) and the `history` store (`{ documentId, entries: HistoryEntry[] }`). History is the accepted-suggestion log, kept beside the document and never part of its Markdown or export (owner decision). Migrations are cased by `oldVersion` in `src/documents/db.ts`.
+- **Title:** derived from the first line of the first non-empty block (owner decision). No separate rename; editing the first line renames.
+- **Autosave (`src/documents/autosave.ts`):** saves 500 ms after the last edit. Writes are chained, so they land in order. A revision counts as saved only when its own write resolves. A write that throws (quota, blocked) shows an error with Retry and never shows "Saved". Each open document has its own Autosaver, and the editor is remounted per document, so pending saves and undo history can't cross documents. A switch flushes first and refuses to switch if the save fails. Saves also flush on `visibilitychange` (hidden) and `pagehide`.
+- **Optimistic concurrency:** `updatedAt` is the version token. A save whose base no longer matches the stored record writes nothing and enters `conflict`. The user then chooses "Load latest" or "Keep mine" (an explicit overwrite), and autosave pauses until they do.
+- **Multiple tabs (owner decision):** a BroadcastChannel carries `claim`, `released` and `deleted` messages. Opening a document, or choosing "Edit here instead", claims it. The previous holder flushes, becomes read-only behind a scrim ("“Title” is open in another tab.") and replies `released`. Taking a document back reloads it from storage first. The conflict check above still protects browsers without BroadcastChannel.
+- **Unavailable storage:** if IndexedDB can't open, the editor still works with a banner saying nothing will be saved. `navigator.storage.persist()` is requested as a best effort.
+
 ## 6. Suggestion state and safe application
 **Do not embed unaccepted AI text in persisted Markdown.** Keep it in transient annotation state.
 

@@ -32,7 +32,7 @@ export type HistoryEntry = {
 type State = { documentId: string; items: Suggestion[]; history: HistoryEntry[] };
 
 type Action =
-	| { type: 'setDocument'; documentId: string }
+	| { type: 'setDocument'; documentId: string; history: HistoryEntry[] }
 	| { type: 'request'; item: Suggestion }
 	| { type: 'resolve'; id: string; proposed: string }
 	| { type: 'remove'; id: string }
@@ -100,8 +100,8 @@ function apply(tr: Transaction, prev: State): State {
 	const action = tr.getMeta(suggestionKey) as Action | undefined;
 	switch (action?.type) {
 		case 'setDocument':
-			// Positions refer to the old document; nothing from it may survive.
-			return { ...prev, documentId: action.documentId, items: [] };
+			// Positions refer to the old document; nothing from it may survive. History is per document.
+			return { documentId: action.documentId, items: [], history: action.history };
 		case 'request': {
 			const item = action.item;
 			const marked = items.map((s) =>
@@ -121,7 +121,7 @@ function apply(tr: Transaction, prev: State): State {
 		case 'remove':
 			return { ...prev, items: items.filter((s) => s.id !== action.id) };
 		case 'accept':
-			// ponytail: session-only and unbounded; persist/cap with document storage (WD-005).
+			// ponytail: unbounded; cap or prune if long-lived documents make history large.
 			return {
 				...prev,
 				items: items.filter((s) => s.id !== action.entry.id),
@@ -172,13 +172,20 @@ const dispatch = (editor: Editor, action: Action) =>
 
 export const getSuggestions = (editor: Editor) => suggestionKey.getState(editor.state)!.items;
 
-/** Accepted suggestions in this session, oldest first, each with the original content it replaced. */
+/** Accepted suggestions for the current document, oldest first, each with the original content it replaced. */
 export const getSuggestionHistory = (editor: Editor) =>
 	suggestionKey.getState(editor.state)!.history;
 
-/** Call on every document switch. Drops all suggestions, so late responses for the old document are ignored. */
-export function setSuggestionDocument(editor: Editor, documentId: string) {
-	dispatch(editor, { type: 'setDocument', documentId });
+/**
+ * Call on every document switch with that document's stored history. Drops all suggestions,
+ * so late responses for the old document are ignored.
+ */
+export function setSuggestionDocument(
+	editor: Editor,
+	documentId: string,
+	history: HistoryEntry[] = [],
+) {
+	dispatch(editor, { type: 'setDocument', documentId, history });
 }
 
 /**
