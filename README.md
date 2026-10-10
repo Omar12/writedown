@@ -26,7 +26,7 @@ cp .env.example .env   # optional; never commit .env
 | `pnpm test`         | Vitest unit and component tests                                  |
 | `pnpm test:e2e`     | Playwright browser tests + axe scan (Chromium; run `pnpm exec playwright install chromium` once) |
 
-Run `pnpm dev` and `pnpm dev:api` in two terminals for local development. CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, build, and test:e2e on every PR.
+Run `pnpm dev` and `pnpm dev:api` in two terminals for local development. The API defaults to a fake AI provider; set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in `.env` to call Claude. Sign-in links print to the API console in development (add your email to `ALLOWLIST`). CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, build, and test:e2e on every PR.
 
 ## Editor keyboard
 

@@ -3,14 +3,14 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- M0 merged (PRs #1–#3). WD-004, WD-005 merged (PRs #4, #5). WD-006 complete on branch `wd-006-import-export`.
+- M0 and M1 merged (PRs #1–#6). WD-007 complete on branch `wd-007-ai-service`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
 | M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
-| M1 Offline editor | WD-004 to WD-006 | Complete | WD-004/005 merged; WD-006 PR open |
-| M2 Explicit AI | WD-007 to WD-009 | Not started | None |
+| M1 Offline editor | WD-004 to WD-006 | Complete | PRs #4–#6 merged |
+| M2 Explicit AI | WD-007 to WD-009 | In progress | WD-007 complete |
 | M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
 
 ## Task status
@@ -22,7 +22,7 @@
 | WD-004 | Visual editor and formatting | Complete | 83 unit/component tests + 3 Chromium e2e (incl. axe) pass |
 | WD-005 | Multi-document storage and autosave | Complete | 104 unit + 8 Chromium e2e pass |
 | WD-006 | Markdown import/export | Complete | 124 unit + 14 Chromium e2e pass |
-| WD-007 | Authenticated AI service boundary | Not started | Not executed |
+| WD-007 | Authenticated AI service boundary | Complete | 44 server tests pass (166 total); live curl flow verified |
 | WD-008 | Context resolution and AI menu | Not started | Not executed |
 | WD-009 | Inline AI suggestions | Not started | Not executed |
 | WD-010 | Opt-in auto proofreading | Not started | Not executed |
@@ -54,17 +54,21 @@
 | 2026-10-09 | WD-006 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-006-import-export |
 | 2026-10-09 | WD-006 | `pnpm test` | exit 0, 124/124 passed (9 files) | Local | 20 new (file validation, filenames, unsafe links, malicious HTML) |
 | 2026-10-09 | WD-006 | `pnpm test:e2e` | exit 0, 14/14 passed | Local Chromium | 6 new: import (picker, drop, warn/cancel, invalid), export (menu, shortcut, rescue) |
+| 2026-10-09 | WD-007 | `pnpm format:check` / `lint` / `typecheck` / `build` / `test:e2e` | exit 0 each | Local | Branch wd-007-ai-service |
+| 2026-10-09 | WD-007 | `pnpm test` | exit 0, 166/166 passed (11 files) | Local | 44 new server tests (auth, route contract, Claude adapter with stub client) |
+| 2026-10-09 | WD-007 | Live curl flow against `node server/index.ts` (fake provider) | All expected statuses | Local | 202/200/303/200/200/401/403 |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
 | ID | Decision | Proposed answer | Gate | Status |
 |---|---|---|---|---|
 | DOC-001 | Markdown import/export P0 | Include; unsupported syntax shows a warning | WD-006 | Confirmed by owner 2026-10-09 |
-| SEC-001 | Private-beta auth | Managed sign-in plus server-side allowlist | WD-007 / WD-012 | Open |
-| SEC-002 | Hosted AI budgets | Per-user and global configurable limits | WD-007 / WD-012 | Open |
+| SEC-001 | Private-beta auth | Email magic links + server-side allowlist (owner 2026-10-09). Email delivery provider still to choose | WD-012 | Resolved (mail provider open) |
+| SEC-002 | Hosted AI budgets | 100 requests/user/day, $10/month global (owner 2026-10-09; "per day" assumed) | WD-007 | Resolved |
 | UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
 | HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
-| OPS-001 | Privacy/retention | Confirm provider settings and disclosure | WD-007 / WD-012 | Open |
+| OPS-001 | Privacy/retention | Confirm Anthropic data-retention settings and the in-app disclosure | WD-012 | Open |
+| AI-001 | Model per task | Haiku 5.5 for proofreading, Sonnet 5.5 for rewrite/expand/custom (see TECH_SPEC §8) | WD-007 | Proposed; owner asked for a recommendation |
 | TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting still open | WD-012 | Partially resolved |
 
 ## WD-001 record
@@ -116,6 +120,15 @@
 - Accessibility fix: export from the switcher left focus on the page body; focus now returns to the text with the selection intact.
 - Known gap: after opening or creating a document from the switcher, focus isn't moved into the new editor. An autofocus attempt broke component tests and was reverted. Track for WD-011.
 - Repair attempts: export e2e 2 (focus loss, a real bug; then a wrong test expectation, since bold was still active at the caret).
+
+## WD-007 record
+- Status: complete. Requirements: FR-008, FR-011, FR-012; BR-007; NFR-005, NFR-006, NFR-009.
+- Changed files: `server/{config,store,auth,app,index,testing}.ts`, `server/ai/{types,anthropic,route}.ts` and tests, `.env.example`, `.gitignore`, package.json, TECH_SPEC.md.
+- Acceptance: anonymous 401, non-allowlisted 403, oversized 413, rate/budget 429, malformed provider output 502, timeouts 504, outage 503 (all tested); the editor and export don't depend on the API (WD-005/006 e2e unchanged and passing).
+- Mutation checks: disabling the allowlist re-check fails 2 tests; disabling the budget reservation fails 1.
+- Live check: local server with the fake provider; magic link → confirm page → POST → HttpOnly cookie → `/me` → suggest 200; anonymous 401; cross-origin 403; log line metadata-only.
+- Not done / needs owner: no real Claude call has been made (no key; the adapter is tested against a stubbed SDK client). Email delivery provider not chosen (production refuses sign-in). The "100 requests" limit is assumed per day. The Anthropic retention setting and disclosure (OPS-001) are still open. No sign-in UI yet (arrives with the AI menu in WD-008).
+- Secrets: `git grep` over staged files found no keys; `.env`, `*.db` ignored.
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
