@@ -54,6 +54,7 @@ Editor: Tiptap 3.31.4 (`@tiptap/core`, `@tiptap/starter-kit`, `@tiptap/markdown`
 - **Upstream defects fixed locally:** (1) the code mark excluded all other marks, so `` [`x`](url) `` produced a schema-invalid document. It now excludes nothing. (2) The code block serializer always used a ``` fence, which corrupted code that contains ```. It now picks a fence longer than the longest backtick run.
 - **Also enabled:** strikethrough and horizontal rule. They are outside the list but round-trip losslessly. Underline is disabled because it has no Markdown syntax.
 - **Unsupported-syntax policy (owner decision: warn):** `parseMarkdown` returns `warnings` for `table`, `html`, `image`, `footnote` and `taskList`. Observed losses without the warning: tables are dropped entirely, images become bare alt text, footnotes become a bogus link, and task items lose their checkbox. WD-006 must show these warnings to the user on import.
+- **Empty and trailing paragraphs (WD-004):** an empty source parses to one empty paragraph, because the schema needs at least one block. `serializeMarkdown` trims trailing whitespace, which drops the empty paragraph the editor keeps after a final heading, list or code block.
 - **HTML safety:** without a DOM, HTML stays literal text and serializes escaped (`&lt;script&gt;`). In a browser, `@tiptap/markdown` parses recognized HTML through the schema with `DOMParser`. Script, image and event-handler attributes are discarded, and nothing executes (verified under happy-dom, not yet in a real browser).
 
 ## 5. Local data model
