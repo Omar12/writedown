@@ -57,6 +57,10 @@
 | 2026-10-09 | WD-007 | `pnpm format:check` / `lint` / `typecheck` / `build` / `test:e2e` | exit 0 each | Local | Branch wd-007-ai-service |
 | 2026-10-09 | WD-007 | `pnpm test` | exit 0, 166/166 passed (11 files) | Local | 44 new server tests (auth, route contract, Claude adapter with stub client) |
 | 2026-10-09 | WD-007 | Live curl flow against `node server/index.ts` (fake provider) | All expected statuses | Local | 202/200/303/200/200/401/403 |
+| 2026-10-09 | WD-008/009 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-008-ai-menu |
+| 2026-10-09 | WD-008/009 | `pnpm test` | exit 0, 174/174 passed (12 files) | Local | 8 new: target resolver (sentences, abbreviations, Unicode/CJK, select-all, code), Resend mailer, mail-failure 202, sign-in page referrer |
+| 2026-10-09 | WD-008/009 | `pnpm test:e2e` | exit 0, 19/19 passed | Local Chromium | 5 new AI journeys (mocked API) incl. axe light/dark on the data notice; e2e run 3× for flakiness: 3/3 pass |
+| 2026-10-09 | WD-008/009 | Live Playwright run against `node server/index.ts` (fake provider) + Vite proxy | pass | Local Chromium | notice → sign-in email → link → confirm → proofread → ⌘Enter → saved over reload → sign out; API log line metadata-only |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -65,7 +69,7 @@
 | DOC-001 | Markdown import/export P0 | Include; unsupported syntax shows a warning | WD-006 | Confirmed by owner 2026-10-09 |
 | SEC-001 | Private-beta auth | Email magic links + server-side allowlist (owner 2026-10-09). Mail via Resend (owner 2026-10-09); needs a verified sending domain before deployment | WD-012 | Resolved |
 | SEC-002 | Hosted AI budgets | 100 requests/user/day, $10/month global (owner 2026-10-09, per day confirmed) | WD-007 | Resolved |
-| UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
+| UX-001 | Shortcut mapping | Mod+J preferred, Mod+/ fallback, plus a toolbar "✦ AI" button (owner 2026-10-09). Both shortcuts pass on Chromium; Firefox/Safari (where Mod+J may open Downloads) untested until WD-011 | WD-011 | Partially resolved |
 | HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
 | OPS-001 | Privacy/retention | Standard API retention: up to 30 days, not used for training; up to 2 years if flagged by trust and safety or required by law (owner 2026-10-09; source: platform.claude.com/docs/en/manage-claude/api-and-data-retention). Disclosure text in TECH_SPEC §AI disclosure; shown in WD-008 | WD-008 | Resolved (UI pending) |
 | AI-001 | Model per task | Haiku 5.5 for proofreading, Sonnet 5.5 for rewrite/expand/custom (see TECH_SPEC §8) | WD-007 | Proposed; owner asked for a recommendation |
@@ -129,6 +133,16 @@
 - Live check: local server with the fake provider; magic link → confirm page → POST → HttpOnly cookie → `/me` → suggest 200; anonymous 401; cross-origin 403; log line metadata-only.
 - Not done / needs owner: no real Claude call has been made (no key; the adapter is tested against a stubbed SDK client). Owner answers (2026-10-09): per day confirmed; Resend chosen and added (`resendMailer`, `RESEND_API_KEY`/`MAIL_FROM`); OPS-001 retention recorded. No sign-in UI yet (arrives with the AI menu in WD-008).
 - Secrets: `git grep` over staged files found no keys; `.env`, `*.db` ignored.
+
+## WD-008 + WD-009 record (one PR, owner request)
+- Status: complete on Chromium. Requirements: FR-006, FR-007, FR-008, FR-009; BR-001 to BR-004, BR-009; UX-001 (partial).
+- Owner decisions (2026-10-09): small popup at the text; sign-in only on first AI use, sign-out in the switcher; Mod+/ fallback; ship WD-008 and WD-009 together.
+- Changed files: `src/ai/{api.ts,useAi.ts,AiMenu.tsx,SuggestionReview.tsx}`, `src/editor/{target.ts,target.test.ts,suggestions.ts,WritingEditor.tsx}`, `src/documents/{DocumentSwitcher,SaveStatus}.tsx`, `src/App.tsx`, `src/index.css`, `server/auth.ts`, `e2e/ai.spec.ts`.
+- Behavior: ⌘J / ⌘/ / "✦ AI" opens a nonmodal popup (Proofread, Rewrite, Expand, Custom instruction…; arrows, Enter, Escape). Target = selection, else the caret's sentence (`Intl.Segmenter`, plus an English title-abbreviation rule); cross-paragraph, code-block, inline-code-only, empty and >4,000-char targets are refused with a message. Opening sends nothing; choosing an action checks `/me`, then sends one request. First use shows the OPS-001 notice (stored in localStorage; reachable from "How AI uses your text"). Signed out → email form in the popup. Reply → word-level `<del>`/`<ins>` in the text and an Accept/Reject bar that never takes focus; ⌘Enter accepts (one undo step), Escape rejects or cancels a pending request. Status messages go to a labelled live region.
+- Acceptance: selection priority, one action per invocation, no request on open, custom instruction required, Escape returns focus, reserved-shortcut fallback (e2e); source unchanged until accept, reject no change, stale reply discarded after an edit inside the target, errors leave text alone (e2e + WD-003 unit tests); saved after accept (live run).
+- Bugs found and fixed: (1) WD-007: `secureHeaders` sends `Referrer-Policy: no-referrer`, so browsers post the sign-in form with `Origin: null` and the CSRF check rejected every emailed link. The confirm page now sets `<meta name="referrer" content="same-origin">` (found by the live browser run; curl never sends Origin). (2) Closing the popup used `commands.focus()`, which waits a frame, so a quick ⌘J after Escape went nowhere; now focuses synchronously. (3) ⌘A on a one-paragraph document was refused as "cross-block"; a selection whose only text is in one block now targets that block.
+- Not done / limitations: no real Claude call yet (no key). Chromium only (WD-011 matrix). Screen-reader check of the review bar not done manually. Popup and review bar are positioned once from caret coordinates; they don't follow window resizes. One review bar at a time (the first ready suggestion). Navigating away within the 500 ms autosave debounce may lose the last keystrokes (WD-005 behavior, seen only in a scripted run; track in WD-011).
+- Repair attempts: e2e 3 (status locator ambiguity, select-all target, Playwright typing faster than `selectionchange`: test now waits one frame).
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.

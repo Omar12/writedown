@@ -13,7 +13,7 @@ async function newDocument(page: Page, text: string) {
 	}
 	await doc(page).click();
 	await page.keyboard.type(text);
-	await expect(page.getByRole('status')).toHaveText('Saved');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 }
 
 test('documents persist independently across reload and switch correctly', async ({ page }) => {
@@ -80,7 +80,7 @@ test('second tab takes the document; first tab shows a scrim and can take it bac
 	await doc(other).click();
 	await other.keyboard.press('End');
 	await other.keyboard.type(' from tab two');
-	await expect(other.getByRole('status')).toHaveText('Saved');
+	await expect(other.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 
 	await page.getByRole('button', { name: 'Edit here instead' }).click();
 	await expect(scrim).toHaveCount(0);
@@ -104,11 +104,11 @@ test('failed writes never show Saved and can be retried', async ({ page }) => {
 	await page.keyboard.type(' more');
 	const problem = page.getByRole('alert');
 	await expect(problem).toContainText('Couldn’t save');
-	await expect(page.getByRole('status')).toHaveCount(0);
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveCount(0);
 
 	await page.evaluate(() => ((window as unknown as { failWrites: boolean }).failWrites = false));
 	await problem.getByRole('button', { name: 'Retry' }).click();
-	await expect(page.getByRole('status')).toHaveText('Saved');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 	await page.reload();
 	await expect(doc(page)).toContainText('Draft more');
 });
@@ -128,7 +128,7 @@ test('without tab coordination, a stale save warns instead of overwriting', asyn
 	await doc(other).click();
 	await other.keyboard.press('End');
 	await other.keyboard.type(' theirs');
-	await expect(other.getByRole('status')).toHaveText('Saved');
+	await expect(other.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 
 	await doc(page).click();
 	await page.keyboard.press('End');
@@ -138,5 +138,5 @@ test('without tab coordination, a stale save warns instead of overwriting', asyn
 
 	await warning.getByRole('button', { name: 'Load latest' }).click();
 	await expect(doc(page)).toHaveText('Base theirs');
-	await expect(page.getByRole('status')).toHaveText('Saved');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 });

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { signOut, useAccount } from '../ai/api.ts';
 import { listDocuments, type DocumentRecord } from './db.ts';
 
 type Props = {
@@ -22,6 +23,7 @@ export function DocumentSwitcher({
 	const [open, setOpen] = useState(false);
 	const [docs, setDocs] = useState<DocumentRecord[]>([]);
 	const [confirming, setConfirming] = useState<string | null>(null);
+	const account = useAccount();
 	const panelId = useId();
 	const trigger = useRef<HTMLButtonElement>(null);
 	const panel = useRef<HTMLDivElement>(null);
@@ -98,6 +100,11 @@ export function DocumentSwitcher({
 					>
 						Export .md <kbd aria-hidden="true">⇧⌘E</kbd>
 					</button>
+					{account && (
+						<button type="button" className="switcher-new" onClick={choose(() => void signOut())}>
+							Sign out of AI <span className="switcher-email">{account.email}</span>
+						</button>
+					)}
 					<ul>
 						{docs.map((d) =>
 							confirming === d.id ? (

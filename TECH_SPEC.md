@@ -189,6 +189,12 @@ Authenticated and authorized; content type JSON.
 - **Logging:** one JSON line per request: request ID, action, outcome, latency, cost. No document text, prompts, outputs or emails (tested).
 - **State:** `node:sqlite` file (`DATABASE_PATH`) holding sign-in tokens, sessions, daily counters and monthly spend. It contains no document content. It is a single instance; `node:sqlite` is experimental in Node 24 and prints a warning at startup.
 
+### WD-008/009 client (2026-10-09)
+- `src/editor/target.ts` resolves the target (selection, else caret sentence via `Intl.Segmenter` in the document locale) and up to 2,000 characters of context each side, matching the server limits.
+- `src/ai/useAi.ts` owns requests for one editor instance: `startSuggestion` freezes the target, the response goes through `resolveSuggestion`, and unmounting the editor (document switch) aborts all in-flight requests. Request ID = suggestion ID; the client rejects a response whose `requestId` differs.
+- The suggestions plugin now renders word-level hunks (`diffText`) instead of one whole-span replacement.
+- `/api/auth/me` is called on app load (no document content) and before each action; a 401 from `/ai/suggest` marks the account signed out.
+
 ## 9. Background proofreading state machine
 States: `disabled → eligible → idle_pending → request_pending → annotation_ready`, with cancel/reset paths to `eligible` or `disabled`.
 

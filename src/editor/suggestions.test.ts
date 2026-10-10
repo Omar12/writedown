@@ -76,8 +76,10 @@ describe('display without mutation', () => {
 		expect(md()).toBe(before);
 		expect(editor.getText()).toBe('The ideas is good. Next sentence.');
 		const dom = editor.view.dom;
-		expect(dom.querySelector('del.wd-suggestion-removed')?.textContent).toBe('ideas is');
-		expect(dom.querySelector('ins.wd-suggestion-added')?.textContent).toBe('idea is');
+		// Word-level: only the changed word is marked.
+		expect(dom.querySelector('del.wd-suggestion-removed')?.textContent).toBe('ideas');
+		expect(dom.querySelector('ins.wd-suggestion-added')?.textContent).toBe('idea');
+		expect(dom.querySelectorAll('del, ins')).toHaveLength(2);
 	});
 
 	test('response does not move caret or selection', () => {

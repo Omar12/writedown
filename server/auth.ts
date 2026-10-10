@@ -68,9 +68,11 @@ export const requireUser =
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
+// The meta referrer overrides secureHeaders' no-referrer for this page only: under no-referrer,
+// browsers send "Origin: null" on form posts, and sameOrigin() would reject the sign-in.
 const page = (c: Context, status: 200 | 400, body: string) =>
 	c.html(
-		`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in · Writedown</title></head><body style="font-family:system-ui;max-width:28rem;margin:20vh auto;padding:0 1rem">${body}</body></html>`,
+		`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="same-origin"><title>Sign in · Writedown</title></head><body style="font-family:system-ui;max-width:28rem;margin:20vh auto;padding:0 1rem">${body}</body></html>`,
 		status,
 		{ 'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'" },
 	);

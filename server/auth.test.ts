@@ -33,6 +33,8 @@ test('GET on the link does not consume it (mail scanners); POST signs in once', 
 	const page = await t.request(path);
 	expect(page.status).toBe(200);
 	expect(page.headers.get('content-security-policy')).toContain("default-src 'none'");
+	// Without this, browsers post the form with "Origin: null" and the CSRF check rejects it.
+	expect(await page.text()).toContain('<meta name="referrer" content="same-origin">');
 	await t.request(path); // second prefetch
 	const token = new URL(t.links[0]).searchParams.get('token')!;
 	const verify = (tok: string) =>

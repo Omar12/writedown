@@ -25,7 +25,7 @@ test('import a clean file creates a new document without touching existing ones'
 	await page.goto('/');
 	await chooseFile(page, mdFile('first.md', '# First\n\nOriginal text.'), 'empty');
 	await expect(doc(page)).toContainText('Original text.');
-	await expect(page.getByRole('status')).toHaveText('Saved');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 
 	await chooseFile(
 		page,
