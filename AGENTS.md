@@ -46,7 +46,7 @@ pnpm test           # vitest unit + component tests (happy-dom)
 pnpm build          # vite production build
 pnpm test:e2e       # playwright (chromium) + axe; needs `pnpm exec playwright install chromium` once
 pnpm dev            # frontend dev server, proxies /api
-pnpm dev:api        # Hono API on $PORT (default 8787)
+pnpm dev:api        # Hono API on $PORT (default 8787); reads .env; AI_PROVIDER=fake by default (no network, no cost)
 ```
 
 `test:integration`: NOT CONFIGURED. Accessibility checks run inside `test:e2e` (axe, WCAG 2.2 A/AA tags, light and dark); there is no separate `test:a11y`. No script needs secrets yet.

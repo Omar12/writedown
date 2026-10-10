@@ -172,6 +172,23 @@ Authenticated and authorized; content type JSON.
 
 **Hosted AI privacy:** request the minimum context; apply the provider's approved retention policy; do not put document content in logs, analytics, URLs, or error traces. Third-party requests must be disclosed in the UI.
 
+### WD-007 implementation (2026-10-09)
+**Provider: Claude (Anthropic API), one model per task (owner asked for the best fit per task).** Configurable via `MODEL_PROOFREAD` / `MODEL_COMPOSE`.
+
+| Task | Model | Effort | Why | Est. cost/request* | Requests per $10 |
+|---|---|---|---|---|---|
+| Proofread (manual and automatic) | `claude-haiku-5-5` ($0.10 / $0.50 per MTok) | low | Small, mechanical, latency-sensitive, high volume (auto-proofreading fires per sentence) | ~$0.0002 | ~50,000 |
+| Rewrite, Expand, Custom | `claude-sonnet-5-5` ($2 / $10 per MTok) | medium | Writing quality matters; Sonnet 5.5 is strong at prose at a fifth of Opus 5.5's output price | ~$0.01 | ~1,000 |
+
+*~1,000 input + ~200 (proofread) / ~800 (compose) output tokens including thinking. Opus 5.5 ($4 / $20) would roughly double compose cost for little gain on single passages; switch `MODEL_COMPOSE=claude-opus-5-5` if quality reviews say otherwise. Sonnet requests send `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) so a safety-classifier false positive is retried server-side on another model; Haiku has no server-side fallback, so a refusal returns `ai_declined`.
+
+- **Request:** `@anthropic-ai/sdk` 0.128.0, `client.beta.messages.create` with `output_config.format` (JSON schema: `status`, `replacementText`, `reason`). The document text goes in as a JSON-encoded user message (`passage`, `contextBefore/After`, `instruction` only for Custom), and the system prompt marks it as data, not instructions. Output is validated server-side again (`parseOutput`): enum, types, a 20,000-character cap. Anything else returns 502 `upstream_invalid`. Replacement text is inserted client-side as plain text, so model output is never rendered as HTML.
+- **Auth (SEC-001, owner decision: email magic links):** `POST /api/auth/request` always returns 202, so the allowlist can't be probed. It is throttled to 5/hour per email and 200/hour overall. Allowlisted emails get a single-use 15-minute link; only the token's SHA-256 is stored. The link opens a confirm page, and the token is consumed only by its POST, because mail scanners prefetch GET links. The session is a random token (hashed at rest) in an HttpOnly, SameSite=Lax cookie (`__Host-` prefixed and Secure in production) lasting 30 days. The allowlist (`ALLOWLIST`) is re-checked on every request, so removing an email revokes access. All POSTs must carry `Origin` = `APP_ORIGIN`. No email provider is chosen yet: development prints the link to the server console, and production returns 503 `mail_unavailable`.
+- **Limits (SEC-002, owner decision):** 100 requests per user per UTC day (counted per attempt), at most 2 in flight per user, and $10 per UTC month across all users. Before each call the worst-case cost (input estimate + `max_tokens` at the model's rate) is reserved atomically in SQLite and then settled to the actual cost from `usage`. A fallback turn is priced at the dearer of the requested and serving models; unknown models get the worst rate. Exhaustion returns 429 `daily_limit` / `too_many_concurrent` / `budget_exhausted`.
+- **Bounds and errors:** 64 KB body, target ≤ 4,000 chars, each context ≤ 2,000, instruction ≤ 500 (413 `payload_too_large`); 400 `invalid_input` / `empty_target` / `missing_instruction`; 25 s timeout and client disconnect abort the provider call (504 `upstream_timeout`); provider outage, rate limit or auth failure gives 503 `upstream_unavailable`; refusal gives 422 `ai_declined`. Errors carry `{ error, requestId }`, and `X-Request-Id` is echoed.
+- **Logging:** one JSON line per request: request ID, action, outcome, latency, cost. No document text, prompts, outputs or emails (tested).
+- **State:** `node:sqlite` file (`DATABASE_PATH`) holding sign-in tokens, sessions, daily counters and monthly spend. It contains no document content. It is a single instance; `node:sqlite` is experimental in Node 24 and prints a warning at startup.
+
 ## 9. Background proofreading state machine
 States: `disabled → eligible → idle_pending → request_pending → annotation_ready`, with cancel/reset paths to `eligible` or `disabled`.
 
