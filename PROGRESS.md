@@ -3,13 +3,13 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- M0 merged (PRs #1–#3). WD-004 merged (PR #4). WD-005 complete on branch `wd-005-local-documents`.
+- M0 merged (PRs #1–#3). WD-004, WD-005 merged (PRs #4, #5). WD-006 complete on branch `wd-006-import-export`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
 | M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
-| M1 Offline editor | WD-004 to WD-006 | In progress | WD-004 merged; WD-005 complete |
+| M1 Offline editor | WD-004 to WD-006 | Complete | WD-004/005 merged; WD-006 PR open |
 | M2 Explicit AI | WD-007 to WD-009 | Not started | None |
 | M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
 
@@ -21,7 +21,7 @@
 | WD-003 | Inline suggestion safety spike | Complete | 23 suggestion + 9 diff tests pass (61 total); GO in TECH_SPEC §6 |
 | WD-004 | Visual editor and formatting | Complete | 83 unit/component tests + 3 Chromium e2e (incl. axe) pass |
 | WD-005 | Multi-document storage and autosave | Complete | 104 unit + 8 Chromium e2e pass |
-| WD-006 | Markdown import/export | Not started | Not executed |
+| WD-006 | Markdown import/export | Complete | 124 unit + 14 Chromium e2e pass |
 | WD-007 | Authenticated AI service boundary | Not started | Not executed |
 | WD-008 | Context resolution and AI menu | Not started | Not executed |
 | WD-009 | Inline AI suggestions | Not started | Not executed |
@@ -51,6 +51,9 @@
 | 2026-10-09 | WD-005 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-005-local-documents |
 | 2026-10-09 | WD-005 | `pnpm test` | exit 0, 104/104 passed (8 files) | Local | IndexedDB via fake-indexeddb; autosave via fake timers |
 | 2026-10-09 | WD-005 | `pnpm test:e2e` | exit 0, 8/8 passed | Local Chromium | Reload, switch, delete, multi-tab scrim, quota failure, conflict |
+| 2026-10-09 | WD-006 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-006-import-export |
+| 2026-10-09 | WD-006 | `pnpm test` | exit 0, 124/124 passed (9 files) | Local | 20 new (file validation, filenames, unsafe links, malicious HTML) |
+| 2026-10-09 | WD-006 | `pnpm test:e2e` | exit 0, 14/14 passed | Local Chromium | 6 new: import (picker, drop, warn/cancel, invalid), export (menu, shortcut, rescue) |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -103,6 +106,16 @@
 - Bugs found and fixed: (1) Tiptap `setEditable` emitted an update, so a tab being blocked saved and caused a false conflict in the other tab; (2) the switcher and scrim showed the stale title until reload; (3) a synchronous `put` failure surfaced as an uncaught error (now aborts the transaction and rejects).
 - Not done: rename is implicit (edit the first line), not a separate action. "Delete" has no undo. Firefox/WebKit not yet run (WD-011). Export as a backup arrives in WD-006, so the storage-error banner can't offer export yet.
 - Process note: string-replace edits twice silently missed after Prettier reformatted a file. The db.ts fix was later applied with the Edit tool and verified.
+
+## WD-006 record
+- Status: complete. Requirements: FR-005; BR-005, BR-006.
+- Owner decisions (2026-10-09): import from both the switcher and drag-and-drop; warn *before* import; export from the switcher plus a shortcut; "Couldn't save" offers export as a rescue.
+- Changed files: `src/documents/{markdownFile.ts,markdownFile.test.ts,ImportDialog.tsx,DocumentSwitcher.tsx,SaveStatus.tsx,useWorkspace.ts}`, `src/editor/{markdown.ts,markdown.test.ts,WritingEditor.tsx}`, `src/App.tsx`, `src/index.css`, `e2e/import-export.spec.ts`, TECH_SPEC.md.
+- Acceptance: fixtures round-trip semantically (WD-002 corpus + import round-trip test); import never overwrites (unit + e2e); malicious HTML and javascript: links never become markup or run (unit + e2e); filename sanitized (9 cases); export works with no network dependency, including unsaved edits and from the save-error message (e2e).
+- Security fix: `[x](javascript:…)` previously parsed into a live link; unsafe link schemes are now removed on parse.
+- Accessibility fix: export from the switcher left focus on the page body; focus now returns to the text with the selection intact.
+- Known gap: after opening or creating a document from the switcher, focus isn't moved into the new editor. An autofocus attempt broke component tests and was reverted. Track for WD-011.
+- Repair attempts: export e2e 2 (focus loss, a real bug; then a wrong test expectation, since bold was still active at the caret).
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.

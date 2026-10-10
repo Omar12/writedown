@@ -23,6 +23,8 @@ type Props = {
 	editable?: boolean;
 	/** Fires on every edit. Serialize lazily (e.g. debounced save), not on every keystroke. */
 	onUpdate?: (editor: Editor) => void;
+	/** Fires once the editor exists, before any edit. */
+	onReady?: (editor: Editor) => void;
 	/** Rendered in the toolbar row before and after the formatting toolbar. */
 	leading?: ReactNode;
 	trailing?: ReactNode;
@@ -35,6 +37,7 @@ export function WritingEditor({
 	initialHistory = [],
 	editable = true,
 	onUpdate,
+	onReady,
 	leading,
 	trailing,
 }: Props) {
@@ -79,7 +82,10 @@ export function WritingEditor({
 				class: 'prose',
 			},
 		},
-		onCreate: ({ editor }) => setSuggestionDocument(editor, documentId, initialHistory),
+		onCreate: ({ editor }) => {
+			setSuggestionDocument(editor, documentId, initialHistory);
+			onReady?.(editor);
+		},
 		onUpdate: ({ editor }) => onUpdateRef.current?.(editor),
 	});
 

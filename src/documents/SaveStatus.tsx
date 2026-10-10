@@ -5,6 +5,7 @@ type Props = {
 	onRetry: () => void;
 	onKeepMine: () => void;
 	onLoadLatest: () => void;
+	onExport: () => void;
 };
 
 const label: Record<'clean' | 'dirty' | 'saving', string> = {
@@ -13,13 +14,16 @@ const label: Record<'clean' | 'dirty' | 'saving', string> = {
 	saving: 'Saving…',
 };
 
-export function SaveStatus({ state, onRetry, onKeepMine, onLoadLatest }: Props) {
+export function SaveStatus({ state, onRetry, onKeepMine, onLoadLatest, onExport }: Props) {
 	if (state === 'error') {
 		return (
 			<div className="save-status save-problem" role="alert">
 				Couldn’t save. Your text is still here.
 				<button type="button" onClick={onRetry}>
 					Retry
+				</button>
+				<button type="button" onClick={onExport}>
+					Export .md
 				</button>
 			</div>
 		);
