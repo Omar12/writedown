@@ -63,11 +63,11 @@
 | ID | Decision | Proposed answer | Gate | Status |
 |---|---|---|---|---|
 | DOC-001 | Markdown import/export P0 | Include; unsupported syntax shows a warning | WD-006 | Confirmed by owner 2026-10-09 |
-| SEC-001 | Private-beta auth | Email magic links + server-side allowlist (owner 2026-10-09). Email delivery provider still to choose | WD-012 | Resolved (mail provider open) |
-| SEC-002 | Hosted AI budgets | 100 requests/user/day, $10/month global (owner 2026-10-09; "per day" assumed) | WD-007 | Resolved |
+| SEC-001 | Private-beta auth | Email magic links + server-side allowlist (owner 2026-10-09). Mail via Resend (owner 2026-10-09); needs a verified sending domain before deployment | WD-012 | Resolved |
+| SEC-002 | Hosted AI budgets | 100 requests/user/day, $10/month global (owner 2026-10-09, per day confirmed) | WD-007 | Resolved |
 | UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
 | HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
-| OPS-001 | Privacy/retention | Confirm Anthropic data-retention settings and the in-app disclosure | WD-012 | Open |
+| OPS-001 | Privacy/retention | Standard API retention: up to 30 days, not used for training; up to 2 years if flagged by trust and safety or required by law (owner 2026-10-09; source: platform.claude.com/docs/en/manage-claude/api-and-data-retention). Disclosure text in TECH_SPEC §AI disclosure; shown in WD-008 | WD-008 | Resolved (UI pending) |
 | AI-001 | Model per task | Haiku 5.5 for proofreading, Sonnet 5.5 for rewrite/expand/custom (see TECH_SPEC §8) | WD-007 | Proposed; owner asked for a recommendation |
 | TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting still open | WD-012 | Partially resolved |
 
@@ -127,12 +127,12 @@
 - Acceptance: anonymous 401, non-allowlisted 403, oversized 413, rate/budget 429, malformed provider output 502, timeouts 504, outage 503 (all tested); the editor and export don't depend on the API (WD-005/006 e2e unchanged and passing).
 - Mutation checks: disabling the allowlist re-check fails 2 tests; disabling the budget reservation fails 1.
 - Live check: local server with the fake provider; magic link → confirm page → POST → HttpOnly cookie → `/me` → suggest 200; anonymous 401; cross-origin 403; log line metadata-only.
-- Not done / needs owner: no real Claude call has been made (no key; the adapter is tested against a stubbed SDK client). Email delivery provider not chosen (production refuses sign-in). The "100 requests" limit is assumed per day. The Anthropic retention setting and disclosure (OPS-001) are still open. No sign-in UI yet (arrives with the AI menu in WD-008).
+- Not done / needs owner: no real Claude call has been made (no key; the adapter is tested against a stubbed SDK client). Owner answers (2026-10-09): per day confirmed; Resend chosen and added (`resendMailer`, `RESEND_API_KEY`/`MAIL_FROM`); OPS-001 retention recorded. No sign-in UI yet (arrives with the AI menu in WD-008).
 - Secrets: `git grep` over staged files found no keys; `.env`, `*.db` ignored.
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
-- Live hosted AI and private-beta deployment are blocked on SEC-001, SEC-002, OPS-001.
+- Private-beta deployment needs: a Resend-verified sending domain, a real `ANTHROPIC_API_KEY` smoke call, and hosting (TECH-002).
 - Final shortcut acceptance depends on UX-001 browser verification.
 
 ## Update template

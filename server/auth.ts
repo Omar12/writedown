@@ -13,6 +13,26 @@ export const consoleMailer: Mailer = {
 	},
 };
 
+/** Sends sign-in links through Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email). */
+export function resendMailer(apiKey: string, from: string, fetchImpl = fetch): Mailer {
+	return {
+		async sendSignInLink(email, link) {
+			const res = await fetchImpl('https://api.resend.com/emails', {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					from,
+					to: [email],
+					subject: 'Your Writedown sign-in link',
+					text: `Open this link to sign in to Writedown. It expires in 15 minutes and works once.\n\n${link}\n\nIf you didn't ask for this, ignore this email.`,
+				}),
+				signal: AbortSignal.timeout(10_000),
+			});
+			if (!res.ok) throw new Error(`resend ${res.status}`);
+		},
+	};
+}
+
 const LOGIN_TTL = 15 * 60_000;
 const SESSION_TTL = 30 * 24 * 60 * 60_000;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}$/;
@@ -72,10 +92,13 @@ export function authRoutes(config: Config, store: Store, mailer: Mailer | null) 
 		// Same response whether or not the address is allowed, so the allowlist can't be probed.
 		if (config.allowlist.has(email)) {
 			const token = store.createLoginToken(email, LOGIN_TTL);
-			await mailer.sendSignInLink(
-				email,
-				`${config.appOrigin}/api/auth/verify?token=${encodeURIComponent(token)}`,
-			);
+			// A send failure still answers 202: a different status would reveal the address is allowlisted.
+			await mailer
+				.sendSignInLink(
+					email,
+					`${config.appOrigin}/api/auth/verify?token=${encodeURIComponent(token)}`,
+				)
+				.catch((e: unknown) => console.error(`sign-in mail failed: ${(e as Error).message}`));
 		}
 		return c.json({ ok: true }, 202);
 	});

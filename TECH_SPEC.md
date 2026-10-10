@@ -206,10 +206,12 @@ Tests use fake clocks for three-second boundaries and delayed/reordered provider
 - Use HTTPS, authenticated sessions and server-side allowlist for the private beta, subject to SEC-001 approval. Frontend route hiding alone is not authorization.
 - AI provider key resides in server environment/secrets store, never delivered in JS bundles.
 - CSRF protections appropriate to auth design, strict same-site/cookie rules where applicable, CORS restrictions, secure headers, request body limits, timeout and bounded retries.
-- Rate-limit per account, cap input/output tokens, enforce per-user/global cost budgets and concurrent requests. Exact numerical thresholds blocked on SEC-002.
+- Rate-limit per account, cap input/output tokens, enforce per-user/global cost budgets and concurrent requests. Thresholds (SEC-002): 100 requests per user per UTC day, $10 per UTC month overall.
 - Import/export filenames and model text must be treated as untrusted; no unsanitized HTML execution, prototype pollution via parsed JSON, or evaluation of generated code.
 - Log metadata-only request IDs/error categories; no default document, prompt or provider-response logging.
 - Provide clear local-storage and AI-transmission disclosure. Do not claim local processing when hosted AI is used.
+- **AI disclosure (OPS-001, owner-confirmed 2026-10-09).** Shown once before the first AI request, and reachable later. Text: "Your documents stay in this browser. When you use AI, the selected text and a little surrounding context are sent to Anthropic's Claude to produce a suggestion. Anthropic keeps API data for up to 30 days and doesn't use it to train models. It may keep it for up to 2 years if its safety systems flag it, or when the law requires." Source: https://platform.claude.com/docs/en/manage-claude/api-and-data-retention. Revisit if the organization enables zero data retention.
+- **Sign-in mail (SEC-001):** Resend HTTP API (`resendMailer` in `server/auth.ts`), configured by `RESEND_API_KEY` and `MAIL_FROM`. A send failure is logged without the address and still answers 202, so the allowlist can't be probed.
 
 ## 11. Accessibility and desktop experience
 Target WCAG 2.2 AA. Keyboard: document list, toolbar, shortcut, menu navigation, selection, suggestion review/accept/reject, export. Maintain logical focus after menu close. Suggestion emphasis must not rely solely on red/green color; assistive technology must receive descriptive text. Respect reduced motion, 200% zoom and screen-reader announcements. Test shortcut collisions, including browser-reserved Ctrl+J.

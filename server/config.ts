@@ -9,6 +9,8 @@ export type Config = {
 	anthropicApiKey: string | undefined;
 	modelProofread: string;
 	modelCompose: string;
+	resendApiKey: string | undefined;
+	mailFrom: string;
 	dailyRequestsPerUser: number;
 	monthlyBudgetUsd: number;
 };
@@ -24,6 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 	if (aiProvider === 'anthropic' && !env.ANTHROPIC_API_KEY) {
 		throw new Error('AI_PROVIDER=anthropic requires ANTHROPIC_API_KEY');
 	}
+	if (env.RESEND_API_KEY && !env.MAIL_FROM) throw new Error('RESEND_API_KEY requires MAIL_FROM');
 	if (production && !env.APP_ORIGIN) throw new Error('APP_ORIGIN is required in production');
 	return {
 		production,
@@ -39,6 +42,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 		anthropicApiKey: env.ANTHROPIC_API_KEY,
 		modelProofread: env.MODEL_PROOFREAD ?? 'claude-haiku-5-5',
 		modelCompose: env.MODEL_COMPOSE ?? 'claude-sonnet-5-5',
+		resendApiKey: env.RESEND_API_KEY,
+		mailFrom: env.MAIL_FROM ?? '',
 		dailyRequestsPerUser: number(env.DAILY_REQUESTS_PER_USER, 100),
 		monthlyBudgetUsd: number(env.MONTHLY_BUDGET_USD, 10),
 	};
