@@ -9,8 +9,10 @@ import {
 	deriveTitle,
 	listDocuments,
 	loadDocument,
+	saveDocument,
 	type DocumentRecord,
 } from './db.ts';
+import { downloadMarkdown, type ParsedImport } from './markdownFile.ts';
 import { openTabChannel, type TabMessage } from './tabs.ts';
 
 export type Workspace =
@@ -108,6 +110,32 @@ export function useWorkspace() {
 		saver.current?.change();
 	}, []);
 
+	const onEditorReady = useCallback((e: Editor) => {
+		editor.current = e;
+	}, []);
+
+	/** Always creates a new document; never overwrites an existing one. */
+	const importDocument = useCallback(
+		async ({ title, markdown }: ParsedImport) => {
+			if (!(await flush())) return false;
+			const doc = await createDocument();
+			await saveDocument(
+				{ ...doc, title, markdown, updatedAt: new Date().toISOString() },
+				doc.updatedAt,
+				[],
+			);
+			return show(doc.id);
+		},
+		[flush, show],
+	);
+
+	/** Exports what is on screen, saved or not, so it also works as a rescue when saving fails. */
+	const exportCurrent = useCallback(() => {
+		if (!editor.current) return;
+		downloadMarkdown(editor.current.getJSON());
+		editor.current.commands.focus(); // back to the text, selection intact
+	}, []);
+
 	const retry = useCallback(() => void saver.current?.flush(), []);
 	const keepMine = useCallback(() => void saver.current?.flush(true), []);
 	const loadLatest = useCallback(() => {
@@ -163,5 +191,18 @@ export function useWorkspace() {
 		};
 	}, [show, showMostRecent]);
 
-	return { workspace, open, create, remove, retry, keepMine, loadLatest, editHere, onEditorUpdate };
+	return {
+		workspace,
+		open,
+		create,
+		remove,
+		importDocument,
+		exportCurrent,
+		retry,
+		keepMine,
+		loadLatest,
+		editHere,
+		onEditorUpdate,
+		onEditorReady,
+	};
 }

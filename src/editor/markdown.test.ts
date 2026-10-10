@@ -109,6 +109,19 @@ describe('unsupported syntax is reported', () => {
 		expect(parseMarkdown(md).warnings).toContain(kind);
 	});
 
+	test('unsafe link schemes are removed, keeping the text', () => {
+		for (const href of [
+			'javascript:alert(1)',
+			'JaVaScRiPt:alert(1)',
+			'data:text/html,x',
+			'vbscript:x',
+		]) {
+			const { doc, warnings } = parseMarkdown(`[click](${href}) [ok](https://e.com)`);
+			expect(warnings).toEqual(['unsafeLink']);
+			expect(serializeMarkdown(doc)).toBe('click [ok](https://e.com)');
+		}
+	});
+
 	test('nested unsupported syntax is found', () => {
 		expect(parseMarkdown('> - item with ![img](a.png)').warnings).toEqual(['image']);
 	});

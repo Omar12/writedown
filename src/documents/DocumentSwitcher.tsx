@@ -6,10 +6,19 @@ type Props = {
 	onOpen: (id: string) => void;
 	onCreate: () => void;
 	onDelete: (id: string) => void;
+	onImport: () => void;
+	onExport: () => void;
 };
 
 /** Disclosure popover listing documents, most recently edited first. Delete asks for confirmation inline. */
-export function DocumentSwitcher({ current, onOpen, onCreate, onDelete }: Props) {
+export function DocumentSwitcher({
+	current,
+	onOpen,
+	onCreate,
+	onDelete,
+	onImport,
+	onExport,
+}: Props) {
 	const [open, setOpen] = useState(false);
 	const [docs, setDocs] = useState<DocumentRecord[]>([]);
 	const [confirming, setConfirming] = useState<string | null>(null);
@@ -77,6 +86,17 @@ export function DocumentSwitcher({ current, onOpen, onCreate, onDelete }: Props)
 				>
 					<button type="button" className="switcher-new" onClick={choose(onCreate)}>
 						+ New document
+					</button>
+					<button type="button" className="switcher-new" onClick={choose(onImport)}>
+						Import .md…
+					</button>
+					<button
+						type="button"
+						className="switcher-new"
+						aria-keyshortcuts="Meta+Shift+E Control+Shift+E"
+						onClick={choose(onExport)}
+					>
+						Export .md <kbd aria-hidden="true">⇧⌘E</kbd>
 					</button>
 					<ul>
 						{docs.map((d) =>

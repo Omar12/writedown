@@ -1,6 +1,7 @@
 import type { JSONContent } from '@tiptap/core';
 import Code from '@tiptap/extension-code';
 import CodeBlock from '@tiptap/extension-code-block';
+import { isAllowedUri } from '@tiptap/extension-link';
 import { MarkdownManager } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 
@@ -27,7 +28,7 @@ export const extensions = [
 
 const markdown = new MarkdownManager({ extensions });
 
-export type UnsupportedSyntax = 'table' | 'html' | 'image' | 'footnote' | 'taskList';
+export type UnsupportedSyntax = 'table' | 'html' | 'image' | 'footnote' | 'taskList' | 'unsafeLink';
 
 type Token = { type: string; task?: boolean; [key: string]: unknown };
 
@@ -46,11 +47,24 @@ function findUnsupported(tokens: Token[], found: Set<UnsupportedSyntax>) {
 	}
 }
 
+/** Removes link marks with unsafe schemes (javascript:, data:, ...), keeping their text. */
+function stripUnsafeLinks(node: JSONContent, found: Set<UnsupportedSyntax>) {
+	if (node.marks) {
+		const safe = node.marks.filter((m) => m.type !== 'link' || isAllowedUri(m.attrs?.href));
+		if (safe.length !== node.marks.length) {
+			found.add('unsafeLink');
+			node.marks = safe;
+		}
+	}
+	node.content?.forEach((child) => stripUnsafeLinks(child, found));
+}
+
 /** Parse Markdown into editor JSON. `warnings` lists syntax the editor cannot represent faithfully. */
 export function parseMarkdown(source: string): { doc: JSONContent; warnings: UnsupportedSyntax[] } {
 	const found = new Set<UnsupportedSyntax>();
 	findUnsupported(markdown.instance.lexer(source) as Token[], found);
 	const doc = markdown.parse(source);
+	stripUnsafeLinks(doc, found);
 	// The schema needs at least one block; an empty doc would leave nothing to type into.
 	if (!doc.content?.length) doc.content = [{ type: 'paragraph' }];
 	return { doc, warnings: [...found] };
