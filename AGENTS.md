@@ -42,13 +42,14 @@ pnpm install --frozen-lockfile
 pnpm format:check   # prettier
 pnpm lint           # eslint
 pnpm typecheck      # tsc (frontend + server)
-pnpm test           # vitest unit tests
+pnpm test           # vitest unit + component tests (happy-dom)
 pnpm build          # vite production build
+pnpm test:e2e       # playwright (chromium) + axe; needs `pnpm exec playwright install chromium` once
 pnpm dev            # frontend dev server, proxies /api
 pnpm dev:api        # Hono API on $PORT (default 8787)
 ```
 
-`test:integration`, `test:e2e` and `test:a11y`: NOT CONFIGURED. Add each one with the first task that needs it (Playwright for e2e/a11y). No script needs secrets yet.
+`test:integration`: NOT CONFIGURED. Accessibility checks run inside `test:e2e` (axe, WCAG 2.2 A/AA tags, light and dark); there is no separate `test:a11y`. No script needs secrets yet.
 
 ## Task status and evidence format
 For each WD task, log: task ID, status (`not started | in progress | blocked | complete`), requirement IDs, commit/PR reference if any, commands executed with exit codes, test counts/results, manual verification (browser and environment), limitations, blockers and timestamp. Evidence must be from actual runs, not inferred.

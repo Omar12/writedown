@@ -3,13 +3,13 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- WD-001 merged (PR #1). WD-002 merged (PR #2). WD-003 complete on branch `wd-003-suggestion-spike`.
+- M0 merged (PRs #1–#3). WD-004 complete on branch `wd-004-visual-editor`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
-| M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1, #2 merged; WD-003 PR open |
-| M1 Offline editor | WD-004 to WD-006 | Not started | None |
+| M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
+| M1 Offline editor | WD-004 to WD-006 | In progress | WD-004 complete |
 | M2 Explicit AI | WD-007 to WD-009 | Not started | None |
 | M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
 
@@ -19,7 +19,7 @@
 | WD-001 | Repository/toolchain/CI initialization | Complete | Local gates exit 0; CI run 38003203895 pass |
 | WD-002 | Markdown fidelity spike | Complete | 29/29 tests pass; GO decision in TECH_SPEC §4 |
 | WD-003 | Inline suggestion safety spike | Complete | 23 suggestion + 9 diff tests pass (61 total); GO in TECH_SPEC §6 |
-| WD-004 | Visual editor and formatting | Not started | Not executed |
+| WD-004 | Visual editor and formatting | Complete | 83 unit/component tests + 3 Chromium e2e (incl. axe) pass |
 | WD-005 | Multi-document storage and autosave | Not started | Not executed |
 | WD-006 | Markdown import/export | Not started | Not executed |
 | WD-007 | Authenticated AI service boundary | Not started | Not executed |
@@ -44,6 +44,10 @@
 | 2026-10-09 | WD-003 | `pnpm test` | exit 0, 45/45 passed (4 files) | Local | 16 new suggestion tests in happy-dom |
 | 2026-10-09 | WD-003 | Mutation: verification disabled | 3 tests fail as expected; file restored | Local | Confirms stale guard coverage |
 | 2026-10-09 | WD-003 | `pnpm test` after formatting/history follow-up | exit 0, 61/61 passed (5 files); format:check/lint/typecheck/build exit 0 | Local | Mutation: whole-range accept fails 3 formatting tests |
+| 2026-10-09 | WD-004 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-004-visual-editor |
+| 2026-10-09 | WD-004 | `pnpm test` | exit 0, 83/83 passed (6 files) | Local | 22 new component tests |
+| 2026-10-09 | WD-004 | `pnpm test:e2e` | exit 0, 3/3 passed | Local Chromium headless shell 156 | Keyboard journey, bubble menu, axe (no serious/critical, light + dark) |
+| 2026-10-09 | WD-004 | Visual screenshots light/dark | Reviewed | Local Chromium | Toolbar, bubble menu, link box render correctly |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -53,6 +57,7 @@
 | SEC-001 | Private-beta auth | Managed sign-in plus server-side allowlist | WD-007 / WD-012 | Open |
 | SEC-002 | Hosted AI budgets | Per-user and global configurable limits | WD-007 / WD-012 | Open |
 | UX-001 | Shortcut mapping | Browser test Meta+J; fallback for Ctrl+J | WD-008 | Open |
+| HIST-001 | Persist suggestion history with the document; add a "restore original" action | Ask again at WD-005 | WD-005 | Open |
 | OPS-001 | Privacy/retention | Confirm provider settings and disclosure | WD-007 / WD-012 | Open |
 | TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting still open | WD-012 | Partially resolved |
 
@@ -77,6 +82,15 @@
 - Mutation checks: disabling the live-text verification makes 3 stale-response tests fail. Reverting Accept to whole-range replacement makes 3 formatting tests fail.
 - Limitations: tests run in happy-dom, not a real browser. Single-textblock targets only. No token-level diff yet (WD-009). Screen-reader announcement of `<ins>`/`<del>` is not yet verified manually (WD-011).
 - Repair attempts: 1 (test-side: an insert landed on the exclusive range edge; the test was wrong, not the code).
+
+## WD-004 record
+- Status: complete. Requirements: FR-001, FR-002; NFR-001, NFR-002.
+- Owner decisions (2026-10-09): fixed toolbar plus selection bubble menu; minimal look that follows the system light/dark setting; small inline link box.
+- Changed files: `src/editor/{commands.ts,Toolbar.tsx,LinkBox.tsx,WritingEditor.tsx,WritingEditor.test.tsx,markdown.ts}`, `src/App.tsx`, `src/main.tsx`, `src/index.css`, `e2e/editor.spec.ts`, `playwright.config.ts`, `vite.config.ts`, `tsconfig.json`, CI, README, AGENTS.md.
+- Behavior: all supported formatting is available from the toolbar and by keyboard shortcut. Toolbar follows the WAI-ARIA pattern (one tab stop, arrows/Home/End, Escape back to the text, Alt+F10 from the text), with `aria-pressed` state and `aria-keyshortcuts`. Clicking a toolbar button keeps editor focus and selection. The link box is opened with Mod+K; it adds https:// to bare domains, rejects javascript:/data:/vbscript:, and returns focus to the text. The empty state has a labelled textbox and a placeholder.
+- Bugs found and fixed: (1) an empty document had no paragraph, leaving nothing to type into; (2) disabled undo/redo used `disabled`, which removed them from toolbar keyboard navigation, so they now use `aria-disabled`; (3) the editor's trailing empty paragraph serialized as extra blank lines.
+- Limitations: e2e runs on Chromium only (Firefox/WebKit/Edge in WD-011). IME composition relies on ProseMirror's native handling and is not yet tested with a real IME. Screen-reader spot-check is not yet done. Pasted rich text is normalized by the schema but has no dedicated test.
+- Repair attempts: Mod-K component test 3 (cause: a string replace silently missed after Prettier reformatted the file); bubble e2e 1 (Shift+Home doesn't select on macOS Chromium).
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.

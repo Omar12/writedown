@@ -23,9 +23,14 @@ cp .env.example .env   # optional; never commit .env
 | `pnpm typecheck`    | `tsc` over frontend and server                                   |
 | `pnpm lint`         | ESLint                                                           |
 | `pnpm format:check` | Prettier check (`pnpm format` to fix)                            |
-| `pnpm test`         | Vitest unit tests                                                |
+| `pnpm test`         | Vitest unit and component tests                                  |
+| `pnpm test:e2e`     | Playwright browser tests + axe scan (Chromium; run `pnpm exec playwright install chromium` once) |
 
-Run `pnpm dev` and `pnpm dev:api` in two terminals for local development. CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, and build on every PR.
+Run `pnpm dev` and `pnpm dev:api` in two terminals for local development. CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, build, and test:e2e on every PR.
+
+## Editor keyboard
+
+Standard shortcuts (Mod = ⌘ on macOS, Ctrl elsewhere): Mod+B bold, Mod+I italic, Mod+E inline code, Mod+K link, Mod+Alt+1–3 headings, Mod+Shift+7/8 lists, Mod+Shift+B quote, Mod+Alt+C code block, Mod+Z / Mod+Shift+Z undo/redo. Alt+F10 moves focus to the toolbar; arrow keys move within it; Escape returns to the text.
 
 ## Secrets
 

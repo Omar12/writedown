@@ -50,9 +50,13 @@ function findUnsupported(tokens: Token[], found: Set<UnsupportedSyntax>) {
 export function parseMarkdown(source: string): { doc: JSONContent; warnings: UnsupportedSyntax[] } {
 	const found = new Set<UnsupportedSyntax>();
 	findUnsupported(markdown.instance.lexer(source) as Token[], found);
-	return { doc: markdown.parse(source), warnings: [...found] };
+	const doc = markdown.parse(source);
+	// The schema needs at least one block; an empty doc would leave nothing to type into.
+	if (!doc.content?.length) doc.content = [{ type: 'paragraph' }];
+	return { doc, warnings: [...found] };
 }
 
 export function serializeMarkdown(doc: JSONContent): string {
-	return markdown.serialize(doc);
+	// Drops the empty trailing paragraph the editor keeps after a final heading, list or code block.
+	return markdown.serialize(doc).trimEnd();
 }
