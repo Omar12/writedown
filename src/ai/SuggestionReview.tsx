@@ -12,7 +12,7 @@ export function SuggestionReview({ editor, ai }: { editor: Editor; ai: Ai }) {
 	const ready = useEditorState({
 		editor,
 		selector: ({ editor: e }) => {
-			const s = getSuggestions(e).find((x) => x.status === 'ready');
+			const s = getSuggestions(e).find((x) => x.status === 'ready' && !x.auto);
 			if (!s) return null;
 			const { bottom, left } = e.view.coordsAtPos(s.to);
 			return {
@@ -40,7 +40,7 @@ export function SuggestionReview({ editor, ai }: { editor: Editor; ai: Ai }) {
 		>
 			{reason && <p className="ai-reason">{reason}</p>}
 			<p className="visually-hidden">
-				Original: {ready.original}. Suggested: {ready.proposed}.
+				{`Original: “${ready.original}” Suggested: “${ready.proposed}”`}
 			</p>
 			<div className="ai-actions">
 				<button

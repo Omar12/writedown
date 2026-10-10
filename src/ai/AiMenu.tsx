@@ -7,7 +7,7 @@ import { ACTION_LABELS, locale, type Ai } from './useAi.ts';
 export const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 const DISCLOSURE_KEY = 'writedown.aiDisclosureAccepted';
-const disclosureAccepted = () => {
+export const disclosureAccepted = () => {
 	try {
 		return localStorage.getItem(DISCLOSURE_KEY) === '1';
 	} catch {

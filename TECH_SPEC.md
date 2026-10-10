@@ -211,6 +211,14 @@ States: `disabled → eligible → idle_pending → request_pending → annotati
 
 Tests use fake clocks for three-second boundaries and delayed/reordered provider stubs.
 
+### WD-010 implementation (2026-10-10)
+- **Toggle:** "Check as I write" switch in the documents menu (owner decision), stored in localStorage, off by default. Enabled only after the data notice and while signed in.
+- **Scheduler** (`src/ai/autoProofread.ts`): an edit arms a 3000 ms timer; any edit or caret move while armed restarts it. On fire: skip if read-only or mid-IME (`view.composing`); target = last sentence before the caret that ends in terminal punctuation (`completedSentence` in `src/editor/target.ts`), skipping the sentence still being typed; skip sentence texts already checked in this editor session and ranges with a live suggestion. One background request at a time.
+- **Display:** pending checks are invisible; a ready one is a dotted underline (owner decision) with no popup, status message, focus or caret change. Clicking it, or ⌘J with the caret inside, opens the normal del/ins review. ⌘Enter / Escape act only on opened or explicit suggestions.
+- **Quota:** background checks count toward the same 100 requests/day (assumed; owner answered "automatic checks", read as "same quota"). A `daily_limit`, `budget_exhausted`, `unauthenticated` or `not_allowlisted` reply pauses background checks for that editor and shows one status message. Other errors are silent.
+- **Off / document switch:** turning the switch off aborts background requests and removes unopened annotations; unmounting the editor (document switch) aborts everything.
+- Tests use real timers (Playwright waits of 2.5 s / 3.5 s), not a fake clock.
+
 ## 10. Security and access controls
 - Use HTTPS, authenticated sessions and server-side allowlist for the private beta, subject to SEC-001 approval. Frontend route hiding alone is not authorization.
 - AI provider key resides in server environment/secrets store, never delivered in JS bundles.
