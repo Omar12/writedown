@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { signOut, useAccount } from '../ai/api.ts';
+import { disclosureAccepted } from '../ai/AiMenu.tsx';
+import { setAutoProofread, signOut, useAccount, useAutoProofread } from '../ai/api.ts';
 import { listDocuments, type DocumentRecord } from './db.ts';
 
 type Props = {
@@ -24,6 +25,10 @@ export function DocumentSwitcher({
 	const [docs, setDocs] = useState<DocumentRecord[]>([]);
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const account = useAccount();
+	const autoOn = useAutoProofread();
+	const autoHint = useId();
+	// Background checks send text, so they need the data notice and a signed-in account first.
+	const autoAllowed = !!account && disclosureAccepted();
 	const panelId = useId();
 	const trigger = useRef<HTMLButtonElement>(null);
 	const panel = useRef<HTMLDivElement>(null);
@@ -100,6 +105,22 @@ export function DocumentSwitcher({
 					>
 						Export .md <kbd aria-hidden="true">⇧⌘E</kbd>
 					</button>
+					<button
+						type="button"
+						role="switch"
+						className="switcher-new"
+						aria-checked={autoOn && autoAllowed}
+						aria-disabled={!autoAllowed || undefined}
+						aria-describedby={autoAllowed ? undefined : autoHint}
+						onClick={() => autoAllowed && setAutoProofread(!autoOn)}
+					>
+						Check as I write <span aria-hidden="true">{autoOn && autoAllowed ? 'On' : 'Off'}</span>
+					</button>
+					{!autoAllowed && (
+						<p id={autoHint} className="switcher-hint">
+							Use AI once (⌘J) and sign in to turn this on.
+						</p>
+					)}
 					{account && (
 						<button type="button" className="switcher-new" onClick={choose(() => void signOut())}>
 							Sign out of AI <span className="switcher-email">{account.email}</span>

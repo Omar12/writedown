@@ -61,6 +61,11 @@
 | 2026-10-09 | WD-008/009 | `pnpm test` | exit 0, 174/174 passed (12 files) | Local | 8 new: target resolver (sentences, abbreviations, Unicode/CJK, select-all, code), Resend mailer, mail-failure 202, sign-in page referrer |
 | 2026-10-09 | WD-008/009 | `pnpm test:e2e` | exit 0, 19/19 passed | Local Chromium | 5 new AI journeys (mocked API) incl. axe light/dark on the data notice; e2e run 3× for flakiness: 3/3 pass |
 | 2026-10-09 | WD-008/009 | Live Playwright run against `node server/index.ts` (fake provider) + Vite proxy | pass | Local Chromium | notice → sign-in email → link → confirm → proofread → ⌘Enter → saved over reload → sign out; API log line metadata-only |
+| 2026-10-10 | WD-007 | Real Claude calls via adapter (`node --env-file=.env`, scratch script) | pass | Local | Haiku proofread 2.6 s $0.0001; Sonnet rewrite 2.2 s $0.0018 |
+| 2026-10-10 | WD-010 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-010-auto-proofread |
+| 2026-10-10 | WD-010 | `pnpm test` | exit 0, 181/181 passed (13 files) | Local | New: completedSentence cases, background annotation display/reveal, stale pruning |
+| 2026-10-10 | WD-010 | `pnpm test:e2e` | exit 0, 23/23 passed | Local Chromium | 4 new: off by default; 3 s boundary + quiet underline + caret unchanged + click review + axe; unfinished/resumed/dedupe; off clears + quota pause |
+| 2026-10-10 | WD-008/010 | Live Playwright run, local API with real Claude (`AI_PROVIDER=anthropic`) | pass | Local Chromium | Sign-in link → ⌘J proofread → accept; background check underlined a typo sentence → click → accept. 2 requests, ~$0.0002 total, logs metadata-only |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -144,9 +149,17 @@
 - Not done / limitations: no real Claude call yet (no key). Chromium only (WD-011 matrix). Screen-reader check of the review bar not done manually. Popup and review bar are positioned once from caret coordinates; they don't follow window resizes. One review bar at a time (the first ready suggestion). Navigating away within the 500 ms autosave debounce may lose the last keystrokes (WD-005 behavior, seen only in a scripted run; track in WD-011).
 - Repair attempts: e2e 3 (status locator ambiguity, select-all target, Playwright typing faster than `selectionchange`: test now waits one frame).
 
+## WD-010 record
+- Status: complete on Chromium. Requirements: FR-010; BR-002, BR-003, BR-007; NFR-006.
+- Owner decisions (2026-10-10): toggle in the documents menu; dotted underline; background checks share the 100/day quota (owner wrote "automatic checks"; read as the same quota, easy to change).
+- Changed files: `src/ai/{autoProofread.ts,useAi.ts,api.ts,AiMenu.tsx,SuggestionReview.tsx}`, `src/editor/{target.ts,suggestions.ts,WritingEditor.tsx}` and tests, `src/documents/DocumentSwitcher.tsx`, `src/index.css`, `e2e/auto-proofread.spec.ts`.
+- Acceptance: no requests when off, before 3 s, on an unfinished sentence, after resumed typing, or for a repeated sentence (e2e); no popup, focus or caret change on response (e2e); stale responses discarded (WD-003/008 tests; the shared engine now also drops shown suggestions whose text changed); quota errors pause checks (e2e). IME: skipped while `view.composing`; not tested with a real IME.
+- Bugs found and fixed: (1) the sentence still being typed ("…here. And") hid the finished sentence before it, so nothing was checked (e2e caught it; unit case added, mutation-checked); (2) the review's screen-reader text read "good.. Suggested" (seen in the live run).
+- Not done / limitations: Chromium only; no real-IME test; background checks of long paragraphs check only the last finished sentence at each pause (earlier unchecked sentences in the same pause are skipped); annotations have a `title` tooltip but no screen-reader announcement on arrival (by design: silent), so finding them needs the underline or ⌘J on the sentence.
+
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
-- Private-beta deployment needs: a Resend-verified sending domain, a real `ANTHROPIC_API_KEY` smoke call, and hosting (TECH-002).
+- Private-beta deployment needs: a Resend-verified sending domain and hosting (TECH-002). Real Claude calls verified 2026-10-10.
 - Final shortcut acceptance depends on UX-001 browser verification.
 
 ## Update template

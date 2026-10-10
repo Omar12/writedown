@@ -17,6 +17,8 @@ export type Suggestion = {
 	original: string;
 	proposed?: string;
 	status: 'pending' | 'ready' | 'stale';
+	/** From background proofreading: shown as a dotted underline until the writer opens it. */
+	auto?: boolean;
 };
 
 /** What an accepted suggestion replaced, kept so the pre-AI wording and formatting are never lost. */
@@ -36,6 +38,7 @@ type Action =
 	| { type: 'request'; item: Suggestion }
 	| { type: 'resolve'; id: string; proposed: string }
 	| { type: 'remove'; id: string }
+	| { type: 'reveal'; id: string }
 	| { type: 'accept'; entry: HistoryEntry };
 
 export const suggestionKey = new PluginKey<State>('suggestions');
@@ -95,6 +98,9 @@ function apply(tr: Transaction, prev: State): State {
 			const unchanged = readRange(tr.doc, from, to).text === s.original;
 			return { ...s, from, to, status: unchanged ? s.status : 'stale' };
 		});
+		// A shown suggestion whose text changed is dead. Stale pending ones stay until their
+		// response arrives, so the requester can tell it was discarded.
+		items = items.filter((s) => !(s.status === 'stale' && s.proposed !== undefined));
 	}
 
 	const action = tr.getMeta(suggestionKey) as Action | undefined;
@@ -120,6 +126,13 @@ function apply(tr: Transaction, prev: State): State {
 			};
 		case 'remove':
 			return { ...prev, items: items.filter((s) => s.id !== action.id) };
+		case 'reveal':
+			return {
+				...prev,
+				items: items.map((s) =>
+					s.id === action.id && s.status === 'ready' ? { ...s, auto: false } : s,
+				),
+			};
 		case 'accept':
 			// ponytail: unbounded; cap or prune if long-lived documents make history large.
 			return {
@@ -133,9 +146,17 @@ function apply(tr: Transaction, prev: State): State {
 
 function decorations(state: EditorState) {
 	const decos = suggestionKey.getState(state)!.items.flatMap((s) => {
+		// Background checks stay invisible while pending, and quiet once ready.
 		if (s.status === 'pending')
-			return [Decoration.inline(s.from, s.to, { class: 'wd-suggestion-pending' })];
+			return s.auto ? [] : [Decoration.inline(s.from, s.to, { class: 'wd-suggestion-pending' })];
 		if (s.status !== 'ready') return [];
+		if (s.auto)
+			return [
+				Decoration.inline(s.from, s.to, {
+					class: 'wd-auto-issue',
+					title: 'Possible correction. Click it, or press ⌘J with the cursor here.',
+				}),
+			];
 		// Word-level: only changed words are marked. <del>/<ins> give non-color cues
 		// (strikethrough/underline) and semantics for assistive tech.
 		const { pos } = readRange(state.doc, s.from, s.to);
@@ -174,7 +195,17 @@ export const Suggestions = Extension.create({
 			new Plugin<State>({
 				key: suggestionKey,
 				state: { init: () => ({ documentId: '', items: [], history: [] }), apply },
-				props: { decorations },
+				props: {
+					decorations,
+					handleClick(view, pos) {
+						const s = suggestionKey
+							.getState(view.state)!
+							.items.find((x) => x.auto && x.status === 'ready' && x.from <= pos && pos <= x.to);
+						if (s)
+							view.dispatch(view.state.tr.setMeta(suggestionKey, { type: 'reveal', id: s.id }));
+						return false;
+					},
+				},
 			}),
 		];
 	},
@@ -209,6 +240,7 @@ export function startSuggestion(
 	editor: Editor,
 	id: string,
 	range: { from: number; to: number } = editor.state.selection,
+	auto = false,
 ): Suggestion | null {
 	const { doc } = editor.state;
 	const { from, to } = range;
@@ -220,6 +252,7 @@ export function startSuggestion(
 		to,
 		original: readRange(doc, from, to).text,
 		status: 'pending',
+		...(auto ? { auto } : {}),
 	};
 	dispatch(editor, { type: 'request', item });
 	return item;
@@ -265,3 +298,14 @@ export function acceptSuggestion(editor: Editor, id: string): boolean {
 export function rejectSuggestion(editor: Editor, id: string) {
 	dispatch(editor, { type: 'remove', id });
 }
+
+/** Turn a quiet background annotation into a full inline review (del/ins plus Accept/Reject). */
+export function revealSuggestion(editor: Editor, id: string) {
+	dispatch(editor, { type: 'reveal', id });
+}
+
+/** The ready background annotation covering `pos`, if any. */
+export const autoSuggestionAt = (editor: Editor, pos: number) =>
+	getSuggestions(editor).find(
+		(s) => s.auto && s.status === 'ready' && s.from <= pos && pos <= s.to,
+	);
