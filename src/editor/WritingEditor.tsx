@@ -13,10 +13,18 @@ import {
 } from './commands.ts';
 import { AiMenu } from '../ai/AiMenu.tsx';
 import { SuggestionReview } from '../ai/SuggestionReview.tsx';
+import { useAccount, useAutoProofread } from '../ai/api.ts';
+import { useBackgroundProofreading } from '../ai/autoProofread.ts';
 import { useAi } from '../ai/useAi.ts';
 import { LinkBox } from './LinkBox.tsx';
 import { extensions, parseMarkdown } from './markdown.ts';
-import { setSuggestionDocument, Suggestions, type HistoryEntry } from './suggestions.ts';
+import {
+	autoSuggestionAt,
+	revealSuggestion,
+	setSuggestionDocument,
+	Suggestions,
+	type HistoryEntry,
+} from './suggestions.ts';
 import { Toolbar } from './Toolbar.tsx';
 
 type Props = {
@@ -60,7 +68,7 @@ export function WritingEditor({
 	// Shortcuts are registered once at editor creation; both targets are stable.
 	const shortcuts = useRef({
 		openLink: () => setLinkOpen(true),
-		openAi: () => setAiOpen(true),
+		openAi: (): void => setAiOpen(true),
 		// Replaced below once the AI controller exists; returning false lets the key through.
 		dismissAi: (): boolean => false,
 		acceptAi: (): boolean => false,
@@ -103,6 +111,16 @@ export function WritingEditor({
 	});
 
 	const ai = useAi(editor);
+	const account = useAccount();
+	useBackgroundProofreading(editor, ai, useAutoProofread() && !!account && editable);
+	// ⌘J on a quiet background annotation opens it instead of the menu.
+	useEffect(() => {
+		shortcuts.current.openAi = () => {
+			const s = autoSuggestionAt(editor, editor.state.selection.from);
+			if (s) revealSuggestion(editor, s.id);
+			else setAiOpen(true);
+		};
+	}, [editor]);
 	useEffect(() => {
 		shortcuts.current.dismissAi = ai.dismiss;
 		shortcuts.current.acceptAi = ai.acceptReady;

@@ -11,6 +11,8 @@ import {
 	resolveSuggestion,
 	setSuggestionDocument,
 	startSuggestion,
+	autoSuggestionAt,
+	revealSuggestion,
 } from './suggestions.ts';
 
 let editor: Editor;
@@ -157,12 +159,12 @@ describe('stale responses cannot apply', () => {
 		expect(editor.getText()).toBe('The ideas really is good.');
 	});
 
-	test('edit inside target after ready: becomes stale, accept refused', () => {
+	test('edit inside target after ready: suggestion is dropped, accept refused', () => {
 		setup('The ideas is good.');
 		request('ideas is', 's1');
 		resolveSuggestion(editor, 's1', 'idea is');
 		editor.commands.insertContentAt(pos('ideas') + 1, 'X');
-		expect(status('s1')).toBe('stale');
+		expect(getSuggestions(editor)).toEqual([]);
 		expect(acceptSuggestion(editor, 's1')).toBe(false);
 		expect(editor.getText()).toBe('The iXdeas is good.');
 		expect(editor.view.dom.querySelector('ins, del')).toBeNull();
@@ -348,5 +350,27 @@ describe('target freezing', () => {
 		editor.commands.setTextSelection({ from: pos('First'), to: pos('Second') + 3 });
 		expect(startSuggestion(editor, 'y')).toBeNull();
 		expect(getSuggestions(editor)).toEqual([]);
+	});
+});
+
+describe('background annotations', () => {
+	test('auto suggestion: no pending mark, dotted underline when ready, reveal shows del/ins', () => {
+		setup('The ideas is good.');
+		const before = md();
+		startSuggestion(editor, 'a1', range('The ideas is good.'), true);
+		expect(editor.view.dom.querySelector('.wd-suggestion-pending')).toBeNull();
+		resolveSuggestion(editor, 'a1', 'The idea is good.');
+		const dom = editor.view.dom;
+		expect(dom.querySelector('.wd-auto-issue')?.textContent).toBe('The ideas is good.');
+		expect(dom.querySelector('del, ins')).toBeNull();
+		expect(autoSuggestionAt(editor, range('ideas').from)?.id).toBe('a1');
+
+		revealSuggestion(editor, 'a1');
+		expect(dom.querySelector('.wd-auto-issue')).toBeNull();
+		expect(dom.querySelector('del')?.textContent).toBe('ideas');
+		expect(autoSuggestionAt(editor, range('ideas').from)).toBeUndefined();
+		expect(md()).toBe(before);
+		expect(acceptSuggestion(editor, 'a1')).toBe(true);
+		expect(editor.getText()).toBe('The idea is good.');
 	});
 });

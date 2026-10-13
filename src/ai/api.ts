@@ -34,6 +34,32 @@ export const useAccount = () =>
 		() => account,
 	);
 
+// Background proofreading preference (FR-010): off by default, remembered per browser.
+const AUTO_KEY = 'writedown.autoProofread';
+let autoProofread = (() => {
+	try {
+		return localStorage.getItem(AUTO_KEY) === '1';
+	} catch {
+		return false;
+	}
+})();
+
+export const useAutoProofread = () =>
+	useSyncExternalStore(
+		(l) => (listeners.add(l), () => listeners.delete(l)),
+		() => autoProofread,
+	);
+
+export function setAutoProofread(on: boolean) {
+	autoProofread = on;
+	try {
+		localStorage.setItem(AUTO_KEY, on ? '1' : '0');
+	} catch {
+		// Storage blocked: the setting lasts for this page only.
+	}
+	listeners.forEach((l) => l());
+}
+
 /** 'signed-in' | 'signed-out' | 'not-allowed' (signed in, but no longer on the beta list) | 'offline'. */
 export async function checkAccount() {
 	try {

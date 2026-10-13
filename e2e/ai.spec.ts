@@ -112,7 +112,7 @@ test('selection wins; Escape rejects; Mod+/ fallback; Escape in menu returns foc
 	await page.keyboard.press('ArrowDown'); // Rewrite
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('group', { name: 'AI suggestion' })).toContainText(
-		'Suggested: Better words.',
+		'Suggested: “Better words”',
 	);
 	expect(calls[0]).toMatchObject({
 		action: 'rewrite',

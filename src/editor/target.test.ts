@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 import { afterEach, expect, test } from 'vitest';
 import { extensions, parseMarkdown } from './markdown.ts';
-import { resolveTarget, sentences } from './target.ts';
+import { completedSentence, resolveTarget, sentences } from './target.ts';
 
 let editor: Editor;
 afterEach(() => editor?.destroy());
@@ -89,4 +89,30 @@ test('rejects empty, cross-block, code block and inline-code-only targets', () =
 	expect(text()).toBe('Run npm test now.');
 	editor.commands.setContent(parseMarkdown('').doc);
 	expect(text()).toMatch(/cursor in a sentence/);
+});
+
+test('completedSentence: last finished sentence before the caret, never an unfinished one', () => {
+	const done = () => completedSentence(editor.state)?.text ?? null;
+	setup('First one. Second one is done. And a third');
+	select('third');
+	expect(done()).toBe('Second one is done.');
+	select(' And'); // caret right after "done."
+	expect(done()).toBe('Second one is done.');
+	select('First');
+	expect(done()).toBeNull(); // nothing finished before the caret
+
+	setup('Done here. And'); // caret at the end of the sentence being typed
+	select('And', 3);
+	editor.commands.setTextSelection(editor.state.selection.to);
+	expect(done()).toBe('Done here.');
+
+	setup('Unfinished thought');
+	select('thought');
+	expect(done()).toBeNull();
+	setup('She said “stop.” Then left');
+	select('Then');
+	expect(done()).toBe('She said “stop.”');
+	setup('```\ncode. more.\n```');
+	select('more');
+	expect(done()).toBeNull();
 });

@@ -577,6 +577,24 @@ main {
 	text-decoration: underline;
 }
 
+.switcher-hint {
+	margin: 0 0.5rem 0.25rem;
+	color: var(--muted);
+	font-size: 0.875rem;
+}
+
+.switcher-new[aria-disabled='true'] {
+	color: var(--muted);
+}
+
+/* Background proofreading: quiet, non-color cue (dotted underline). */
+.wd-auto-issue {
+	text-decoration: underline dotted var(--accent);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.2em;
+	cursor: pointer;
+}
+
 .switcher-email {
 	color: var(--muted);
 	font-size: 0.875rem;

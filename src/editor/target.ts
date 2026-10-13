@@ -1,3 +1,4 @@
+import type { Node } from '@tiptap/pm/model';
 import type { EditorState } from '@tiptap/pm/state';
 import { readRange } from './suggestions.ts';
 
@@ -72,6 +73,11 @@ export function resolveTarget(state: EditorState, locale = 'en'): Target | { err
 		to = pos[span[1]];
 	}
 
+	return checked(doc, from, to);
+}
+
+/** Validates a single-textblock range and adds bounded context. */
+function checked(doc: Node, from: number, to: number): Target | { error: string } {
 	const text = readRange(doc, from, to).text;
 	if (!text.trim()) return { error: 'Put the cursor in a sentence or select some text.' };
 	if (text.length > TARGET_CHARS)
@@ -90,4 +96,28 @@ export function resolveTarget(state: EditorState, locale = 'en'): Target | { err
 		contextBefore: doc.textBetween(0, from, '\n\n', '\n').slice(-CONTEXT_CHARS),
 		contextAfter: doc.textBetween(to, doc.content.size, '\n\n', '\n').slice(0, CONTEXT_CHARS),
 	};
+}
+
+// Sentence-final punctuation, optionally followed by closing quotes or brackets.
+const TERMINAL = /[.!?…。！？]['"”’)\]»」』]*$/u;
+
+/**
+ * For automatic proofreading: the sentence the writer just finished, i.e. the last sentence that
+ * ends at or before an empty caret with terminal punctuation. Null when there is none.
+ */
+export function completedSentence(state: EditorState, locale = 'en'): Target | null {
+	const { selection, doc } = state;
+	const { $from } = selection;
+	if (!selection.empty || !$from.parent.isTextblock || $from.parent.type.name === 'codeBlock')
+		return null;
+	const { text, pos } = readRange(doc, $from.start(), $from.end());
+	const caret = pos.findIndex((p) => p >= selection.from);
+	const offset = caret === -1 ? text.length : caret;
+	// Skips the sentence still being typed at the caret.
+	const span = sentences(text, locale).findLast(
+		([s, e]) => e <= offset && TERMINAL.test(text.slice(s, e)),
+	);
+	if (!span) return null;
+	const target = checked(doc, pos[span[0]], pos[span[1]]);
+	return 'error' in target ? null : target;
 }
