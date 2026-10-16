@@ -453,6 +453,7 @@ main {
 .ai-review {
 	position: absolute;
 	z-index: 20;
+	box-sizing: border-box; /* the 336 px clamp in AiMenu/SuggestionReview assumes 20rem outer */
 	width: min(20rem, calc(100vw - 1rem));
 	padding: 0.5rem;
 	border: 1px solid var(--line);
