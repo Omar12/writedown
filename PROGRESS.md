@@ -3,15 +3,15 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- M0 and M1 merged (PRs #1–#6). WD-007 complete on branch `wd-007-ai-service`.
+- M0, M1 and M2 merged (PRs #1–#9); WD-010 merged (PR #10). WD-011 in progress on branch `wd-011-quality-gate`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
 | M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
 | M1 Offline editor | WD-004 to WD-006 | Complete | PRs #4–#6 merged |
-| M2 Explicit AI | WD-007 to WD-009 | In progress | WD-007 complete |
-| M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
+| M2 Explicit AI | WD-007 to WD-009 | Complete | PRs #7–#9 merged |
+| M3 Auto proofreading and beta | WD-010 to WD-012 | In progress | WD-010 merged (PR #10); WD-011 in progress |
 
 ## Task status
 | Task | Title | Status | Validation evidence |
@@ -23,10 +23,10 @@
 | WD-005 | Multi-document storage and autosave | Complete | 104 unit + 8 Chromium e2e pass |
 | WD-006 | Markdown import/export | Complete | 124 unit + 14 Chromium e2e pass |
 | WD-007 | Authenticated AI service boundary | Complete | 44 server tests pass (166 total); live curl flow verified |
-| WD-008 | Context resolution and AI menu | Not started | Not executed |
-| WD-009 | Inline AI suggestions | Not started | Not executed |
-| WD-010 | Opt-in auto proofreading | Not started | Not executed |
-| WD-011 | Quality/accessibility/security gate | Not started | Not executed |
+| WD-008 | Context resolution and AI menu | Complete | 174 unit + 19 Chromium e2e; live run |
+| WD-009 | Inline AI suggestions | Complete | Shipped with WD-008 (PR #8) |
+| WD-010 | Opt-in auto proofreading | Complete | 181 unit + 23 Chromium e2e; live run with real Claude |
+| WD-011 | Quality/accessibility/security gate | In progress (automated gate done; manual checks left) | 183 unit + 91 e2e on Chromium/Firefox/WebKit; layout/zoom; pagehide flush; BR-009; outage e2e; secrets scan |
 | WD-012 | Hosted private beta | Not started | Not executed |
 
 ## Evidence log
@@ -66,6 +66,19 @@
 | 2026-10-10 | WD-010 | `pnpm test` | exit 0, 181/181 passed (13 files) | Local | New: completedSentence cases, background annotation display/reveal, stale pruning |
 | 2026-10-10 | WD-010 | `pnpm test:e2e` | exit 0, 23/23 passed | Local Chromium | 4 new: off by default; 3 s boundary + quiet underline + caret unchanged + click review + axe; unfinished/resumed/dedupe; off clears + quota pause |
 | 2026-10-10 | WD-008/010 | Live Playwright run, local API with real Claude (`AI_PROVIDER=anthropic`) | pass | Local Chromium | Sign-in link → ⌘J proofread → accept; background check underlined a typo sentence → click → accept. 2 requests, ~$0.0002 total, logs metadata-only |
+| 2026-10-15 | WD-011 | `pnpm test:e2e --project=firefox --project=webkit` before fix | Firefox 23/23; WebKit 9 failed | Local, Playwright Firefox + WebKit 27.2 | Every menu click in WebKit closed the menu first |
+| 2026-10-15 | WD-011 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-011-quality-gate |
+| 2026-10-15 | WD-011 | `pnpm test` | exit 0, 181/181 passed (13 files) | Local | |
+| 2026-10-15 | WD-011 | `pnpm test:e2e` | exit 0, 76 passed, 2 skipped | Local Chromium, Firefox, WebKit | Skipped = 25k-word check on Firefox/WebKit (no Long Tasks API) |
+| 2026-10-15 | WD-011 | `pnpm test:e2e e2e/performance.spec.ts --project=chromium --repeat-each=3` | 3/3 pass; longest task 53, 52, 52 ms | Local Chromium, Vite dev build | NFR-004 budget 100 ms |
+| 2026-10-15 | WD-011 | Secrets scan: `git log -p --all` for Anthropic/OpenRouter/Resend/AWS key patterns and private keys; `git ls-files` for .env/.db; `dist/` for key names | No matches | Local | |
+| 2026-10-15 | WD-011 | Log review: every `console.*` in `server/` and `src/` | Metadata only | Local | AI log = requestId/action/outcome/ms/cost; dev mailer prints links only outside production; mail errors log `resend <status>` only |
+| 2026-10-15 | WD-011 | `pnpm test:e2e e2e/layout.spec.ts` before fix | 7 passed, 2 failed | Local Chromium, Firefox, WebKit | 200% zoom (512 CSS px at scale 2): AI menu right edge at 514 px in a 512 px viewport (Firefox, WebKit) |
+| 2026-10-15 | WD-011 | New pagehide flush e2e before fix | 3/3 failed (Chromium, Firefox, WebKit) | Local | Typing then reloading within 500 ms lost the edit |
+| 2026-10-15 | WD-011 | `pnpm test` | exit 0, 183/183 passed (13 files) | Local | New: `unsaved()`, stash restore rules (mutation-checked) |
+| 2026-10-15 | WD-011 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | `format:check` also flags untracked `.impeccable/hook.cache.json` (local tool cache, not committed) |
+| 2026-10-15 | WD-011 | `pnpm test:e2e` | exit 0, 91 passed, 2 skipped | Local Chromium, Firefox, WebKit | Skipped = 25k-word check on Firefox/WebKit (no Long Tasks API) |
+| 2026-10-15 | WD-011 | `vite preview` of `pnpm build`, then `e2e/performance.spec.ts --project=chromium --repeat-each=3` | 3/3 pass; no long tasks (none over 50 ms) | Local Chromium, production build | NFR-004 budget 100 ms |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -74,7 +87,7 @@
 | DOC-001 | Markdown import/export P0 | Include; unsupported syntax shows a warning | WD-006 | Confirmed by owner 2026-10-09 |
 | SEC-001 | Private-beta auth | Email magic links + server-side allowlist (owner 2026-10-09). Mail via Resend (owner 2026-10-09); needs a verified sending domain before deployment | WD-012 | Resolved |
 | SEC-002 | Hosted AI budgets | 100 requests/user/day, $10/month global (owner 2026-10-09, per day confirmed) | WD-007 | Resolved |
-| UX-001 | Shortcut mapping | Mod+J preferred, Mod+/ fallback, plus a toolbar "✦ AI" button (owner 2026-10-09). Both shortcuts pass on Chromium; Firefox/Safari (where Mod+J may open Downloads) untested until WD-011 | WD-011 | Partially resolved |
+| UX-001 | Shortcut mapping | Mod+J preferred, Mod+/ fallback, plus a toolbar "✦ AI" button (owner 2026-10-09). Both shortcuts pass in Playwright on Chromium, Firefox and WebKit, but Playwright doesn't trigger browser-level shortcuts, so a real Firefox/Safari check (where Mod+J may open Downloads) is still needed | WD-011 manual | Partially resolved |
 | HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
 | OPS-001 | Privacy/retention | Standard API retention: up to 30 days, not used for training; up to 2 years if flagged by trust and safety or required by law (owner 2026-10-09; source: platform.claude.com/docs/en/manage-claude/api-and-data-retention). Disclosure text in TECH_SPEC §AI disclosure; shown in WD-008 | WD-008 | Resolved (UI pending) |
 | AI-001 | Model per task | Haiku 5.5 for proofreading, Sonnet 5.5 for rewrite/expand/custom (see TECH_SPEC §8) | WD-007 | Proposed; owner asked for a recommendation |
@@ -156,6 +169,25 @@
 - Acceptance: no requests when off, before 3 s, on an unfinished sentence, after resumed typing, or for a repeated sentence (e2e); no popup, focus or caret change on response (e2e); stale responses discarded (WD-003/008 tests; the shared engine now also drops shown suggestions whose text changed); quota errors pause checks (e2e). IME: skipped while `view.composing`; not tested with a real IME.
 - Bugs found and fixed: (1) the sentence still being typed ("…here. And") hid the finished sentence before it, so nothing was checked (e2e caught it; unit case added, mutation-checked); (2) the review's screen-reader text read "good.. Suggested" (seen in the live run).
 - Not done / limitations: Chromium only; no real-IME test; background checks of long paragraphs check only the last finished sentence at each pause (earlier unchecked sentences in the same pause are skipped); annotations have a `title` tooltip but no screen-reader announcement on arrival (by design: silent), so finding them needs the underline or ⌘J on the sentence.
+
+## WD-011 record (in progress: automated gate done, manual checks left)
+- Requirements: NFR-001 to NFR-009; BR-005, BR-009 newly covered by e2e. Earlier tasks' records cover BR-001 to BR-004 and BR-006 to BR-008.
+- Changed files: `playwright.config.ts`, `.github/workflows/ci.yml`, `AGENTS.md`, `src/ai/AiMenu.tsx`, `src/documents/{DocumentSwitcher.tsx,useWorkspace.ts,autosave.ts,autosave.test.ts}`, `src/index.css`, `e2e/{ai,documents,layout}.spec.ts`; `e2e/performance.spec.ts` was added, then removed at the owner's request after it failed in CI (NFR-004 now has no automated check).
+- Browser matrix: e2e now runs on Chromium, Firefox and WebKit, locally and in CI. Edge is Chromium-based and not run separately.
+- Bugs found and fixed:
+  1. Safari doesn't focus a button on click, so the documents panel and the AI menu lost focus with no `relatedTarget`, and their `onBlur` closed them before the click landed. No menu action worked in WebKit (9 of 23 e2e failed). The containers now have `tabIndex={-1}`.
+  2. WD-006 gap: opening, creating, importing or deleting from the switcher left focus on the page body. The new editor now takes focus.
+  3. NFR-001: the AI menu and review bar used content-box sizing, so they were 18 px wider than the 336 px position clamp allowed. They overflowed the right edge by 2 px near it (seen at 200% zoom). Fixed with `box-sizing: border-box`.
+  4. Data loss (WD-005/008 known gap): typing then leaving or reloading within the 500 ms debounce lost the edit in all three browsers. The pagehide flush's IndexedDB write doesn't survive unload: the checked save writes in a later task, and WebKit drops even an unchecked write with an explicit `commit()`. Now, on `pagehide`/hidden, an unsaved edit is also copied to `localStorage` (`writedown.unsavedEdit`, one slot). The next open of that document restores it only if the stored record hasn't changed since (same `updatedAt`), otherwise discards it. Undo history for those last keystrokes isn't kept.
+- Added checks: 1024 px, 1920 px and 200% zoom layout (controls on screen, no sideways scroll, panels inside the viewport); pagehide flush (reload and navigate away); BR-009 (switching documents mid-request shows no suggestion in either document); AI outage (API unreachable, then provider 503: message only; typing, autosave and export still work).
+- Already covered elsewhere: NFR-003 failed writes (`documents.spec.ts`, `import-export.spec.ts` rescue export); NFR-009 privacy notice before first AI use (`ai.spec.ts`); storage unavailable banner (WD-005).
+- Zoom is emulated (half the CSS width at device scale 2), not the browser's own zoom.
+- Remaining, manual only (needs a person at a real browser):
+  1. VoiceOver spot-check of the AI menu, the review bar (`<ins>`/`<del>` announcement) and the background underline.
+  2. Real Firefox and Safari: does ⌘J open the AI menu or the Downloads panel (UX-001)? Mod+/ and the "✦ AI" button are the fallbacks.
+  3. Real IME composition (for example Japanese) with background checks on.
+  4. Real browser zoom at 200% in Safari and Firefox (a quick look to confirm the emulation).
+- Repair attempts: performance test 2 (test-side: wrong paragraph index; lint on a comma expression). Outage test 1 (test-side: wrong expected filename). BR-009 test 1 (test-side: typed before focusing the new editor). Pagehide flush 3: (1) unchecked IndexedDB write, fixed Chromium only; (2) plus `tx.commit()`, fixed Firefox, WebKit still failed; (3) `localStorage` stash, passes all three (the IndexedDB changes were reverted).
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.

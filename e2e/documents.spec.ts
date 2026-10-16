@@ -140,3 +140,41 @@ test('without tab coordination, a stale save warns instead of overwriting', asyn
 	await expect(doc(page)).toHaveText('Base theirs');
 	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 });
+
+test('opening, creating and deleting from the switcher puts focus in the text', async ({
+	page,
+}) => {
+	await page.goto('/');
+	await newDocument(page, 'One');
+	await switcher(page).click();
+	await page.getByRole('button', { name: '+ New document' }).click();
+	await expect(doc(page)).toBeFocused();
+	await page.keyboard.type('Two');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
+
+	await switcher(page).click();
+	await page.getByRole('button', { name: 'One', exact: true }).click();
+	await expect(doc(page)).toHaveText('One');
+	await expect(doc(page)).toBeFocused();
+
+	await switcher(page).click();
+	await page.getByRole('button', { name: 'Delete One' }).click();
+	await page.getByRole('button', { name: 'Delete', exact: true }).click();
+	await expect(doc(page)).toHaveText('Two');
+	await expect(doc(page)).toBeFocused();
+});
+
+test('typing then leaving at once still saves (pagehide flush)', async ({ page }) => {
+	await page.goto('/');
+	await newDocument(page, 'Quick');
+	await page.keyboard.type(' exit'); // inside the 500 ms autosave debounce
+	await page.reload();
+	await expect(doc(page)).toHaveText('Quick exit');
+
+	await doc(page).click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' away');
+	await page.goto('about:blank');
+	await page.goto('/');
+	await expect(doc(page)).toHaveText('Quick exit away');
+});

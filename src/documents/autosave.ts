@@ -78,7 +78,43 @@ export class Autosaver {
 		return this.state === 'clean';
 	}
 
+	/** The latest edit when it isn't stored yet (dirty, saving or failed); null otherwise. */
+	unsaved(): Snapshot | null {
+		return this.savedRevision === this.revision ? null : this.snapshot();
+	}
+
 	dispose() {
 		clearTimeout(this.timer);
+	}
+}
+
+// Leaving the page: IndexedDB writes started in pagehide are lost in WebKit (and the checked
+// save needs a later task that never comes), so keep a synchronous copy. One slot, last page wins.
+const STASH_KEY = 'writedown.unsavedEdit';
+type Stash = { id: string; base: string; title: string; markdown: string };
+
+/** Keep `record`'s unsaved edit in localStorage until the next open of that document. */
+export function stashUnsaved(record: DocumentRecord, { title, markdown }: Snapshot) {
+	try {
+		const stash: Stash = { id: record.id, base: record.updatedAt, title, markdown };
+		localStorage.setItem(STASH_KEY, JSON.stringify(stash));
+	} catch {
+		// Storage blocked or full: the IndexedDB flush is still attempted.
+	}
+}
+
+/** The stashed edit for `record`, only if nothing was saved since it was made. Consumes it. */
+export function takeUnsaved(record: DocumentRecord): { title: string; markdown: string } | null {
+	try {
+		const raw = localStorage.getItem(STASH_KEY);
+		const stash = raw ? (JSON.parse(raw) as Stash) : null;
+		if (stash?.id !== record.id) return null;
+		localStorage.removeItem(STASH_KEY);
+		// A newer save means the flush landed, or another tab saved after; never overwrite it.
+		return stash.base === record.updatedAt
+			? { title: stash.title, markdown: stash.markdown }
+			: null;
+	} catch {
+		return null;
 	}
 }

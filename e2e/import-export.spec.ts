@@ -109,7 +109,8 @@ test('export downloads sanitized .md from the switcher and the shortcut, includi
 	await switcher(page).click();
 	await page.getByRole('button', { name: /Export \.md/ }).click();
 	let file = await download;
-	expect(file.suggestedFilename()).toBe('Plans 202627.md');
+	// WebKit reports spaces in suggested download names as underscores.
+	expect(file.suggestedFilename().replaceAll('_', ' ')).toBe('Plans 202627.md');
 	expect(await readFile(await file.path(), 'utf8')).toBe('Plans: 2026/27?\n\nBody with **bold**\n');
 
 	await expect(doc(page)).toBeFocused(); // export returned focus with the caret where it was
