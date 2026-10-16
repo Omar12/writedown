@@ -26,7 +26,7 @@
 | WD-008 | Context resolution and AI menu | Complete | 174 unit + 19 Chromium e2e; live run |
 | WD-009 | Inline AI suggestions | Complete | Shipped with WD-008 (PR #8) |
 | WD-010 | Opt-in auto proofreading | Complete | 181 unit + 23 Chromium e2e; live run with real Claude |
-| WD-011 | Quality/accessibility/security gate | In progress (automated gate done; manual checks left) | 183 unit + 91 e2e on Chromium/Firefox/WebKit; layout/zoom; pagehide flush; BR-009; 25k-word check (dev + prod build); outage e2e; secrets scan |
+| WD-011 | Quality/accessibility/security gate | In progress (automated gate done; manual checks left) | 183 unit + 91 e2e on Chromium/Firefox/WebKit; layout/zoom; pagehide flush; BR-009; outage e2e; secrets scan |
 | WD-012 | Hosted private beta | Not started | Not executed |
 
 ## Evidence log
@@ -172,14 +172,14 @@
 
 ## WD-011 record (in progress: automated gate done, manual checks left)
 - Requirements: NFR-001 to NFR-009; BR-005, BR-009 newly covered by e2e. Earlier tasks' records cover BR-001 to BR-004 and BR-006 to BR-008.
-- Changed files: `playwright.config.ts`, `.github/workflows/ci.yml`, `AGENTS.md`, `src/ai/AiMenu.tsx`, `src/documents/{DocumentSwitcher.tsx,useWorkspace.ts,autosave.ts,autosave.test.ts}`, `src/index.css`, `e2e/{performance,ai,documents,layout}.spec.ts`.
+- Changed files: `playwright.config.ts`, `.github/workflows/ci.yml`, `AGENTS.md`, `src/ai/AiMenu.tsx`, `src/documents/{DocumentSwitcher.tsx,useWorkspace.ts,autosave.ts,autosave.test.ts}`, `src/index.css`, `e2e/{ai,documents,layout}.spec.ts`; `e2e/performance.spec.ts` was added, then removed at the owner's request after it failed in CI (NFR-004 now has no automated check).
 - Browser matrix: e2e now runs on Chromium, Firefox and WebKit, locally and in CI. Edge is Chromium-based and not run separately.
 - Bugs found and fixed:
   1. Safari doesn't focus a button on click, so the documents panel and the AI menu lost focus with no `relatedTarget`, and their `onBlur` closed them before the click landed. No menu action worked in WebKit (9 of 23 e2e failed). The containers now have `tabIndex={-1}`.
   2. WD-006 gap: opening, creating, importing or deleting from the switcher left focus on the page body. The new editor now takes focus.
   3. NFR-001: the AI menu and review bar used content-box sizing, so they were 18 px wider than the 336 px position clamp allowed. They overflowed the right edge by 2 px near it (seen at 200% zoom). Fixed with `box-sizing: border-box`.
   4. Data loss (WD-005/008 known gap): typing then leaving or reloading within the 500 ms debounce lost the edit in all three browsers. The pagehide flush's IndexedDB write doesn't survive unload: the checked save writes in a later task, and WebKit drops even an unchecked write with an explicit `commit()`. Now, on `pagehide`/hidden, an unsaved edit is also copied to `localStorage` (`writedown.unsavedEdit`, one slot). The next open of that document restores it only if the stored record hasn't changed since (same `updatedAt`), otherwise discards it. Undo history for those last keystrokes isn't kept.
-- Added checks: 1024 px, 1920 px and 200% zoom layout (controls on screen, no sideways scroll, panels inside the viewport); pagehide flush (reload and navigate away); BR-009 (switching documents mid-request shows no suggestion in either document); 25,000-word responsiveness (Chromium Long Tasks: dev build longest 53 ms, production build none over 50 ms); AI outage (API unreachable, then provider 503: message only; typing, autosave and export still work).
+- Added checks: 1024 px, 1920 px and 200% zoom layout (controls on screen, no sideways scroll, panels inside the viewport); pagehide flush (reload and navigate away); BR-009 (switching documents mid-request shows no suggestion in either document); AI outage (API unreachable, then provider 503: message only; typing, autosave and export still work).
 - Already covered elsewhere: NFR-003 failed writes (`documents.spec.ts`, `import-export.spec.ts` rescue export); NFR-009 privacy notice before first AI use (`ai.spec.ts`); storage unavailable banner (WD-005).
 - Zoom is emulated (half the CSS width at device scale 2), not the browser's own zoom.
 - Remaining, manual only (needs a person at a real browser):
