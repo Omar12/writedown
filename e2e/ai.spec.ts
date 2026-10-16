@@ -203,3 +203,33 @@ test('errors leave the text alone; editing the target discards the late reply', 
 	await expect(doc).toHaveText('Some text hereX.');
 	await expect(doc.locator('ins')).toHaveCount(0);
 });
+
+test('AI outage: messages only; typing, saving and export keep working (NFR-007)', async ({
+	page,
+}) => {
+	await page.route('/api/**', (r) => r.abort('connectionrefused'));
+	const doc = await start(page, 'Offline text.');
+	await page.keyboard.press('ControlOrMeta+j');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('alert')).toHaveText(
+		'Can’t reach the AI service. Your writing is still saved.',
+	);
+	await page.getByRole('button', { name: 'OK' }).click();
+	await expect(doc).toBeFocused();
+
+	// Server reachable but the provider is down mid-request.
+	await page.unrouteAll();
+	await mockApi(page, { reply: () => ({ error: 'upstream_unavailable', status: 503 }) });
+	await page.keyboard.press('ControlOrMeta+j');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('status', { name: 'AI status' })).toContainText(
+		'Your writing is still saved',
+	);
+
+	await page.keyboard.type(' More.');
+	await expect(doc).toHaveText('Offline text. More.');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
+	const download = page.waitForEvent('download');
+	await page.keyboard.press('ControlOrMeta+Shift+e');
+	expect((await download).suggestedFilename()).toBe('Offline text. More.md');
+});
