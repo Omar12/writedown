@@ -231,7 +231,8 @@ test('AI outage: messages only; typing, saving and export keep working (NFR-007)
 	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 	const download = page.waitForEvent('download');
 	await page.keyboard.press('ControlOrMeta+Shift+e');
-	expect((await download).suggestedFilename()).toBe('Offline text. More.md');
+	// WebKit reports spaces in suggested download names as underscores.
+	expect((await download).suggestedFilename().replaceAll('_', ' ')).toBe('Offline text. More.md');
 });
 
 test('switching documents mid-request drops the reply (BR-009)', async ({ page }) => {
