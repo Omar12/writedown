@@ -3,15 +3,15 @@
 - Snapshot date: 2026-10-09
 - Repo: `https://github.com/Omar12/writedown`
 - Repository observation: `main` exists as GitHub default branch label, but repository is empty (size 0); contents returned GitHub 404 "repository is empty" and commit listing returned 409 "Git Repository is empty".
-- M0 and M1 merged (PRs #1–#6). WD-007 complete on branch `wd-007-ai-service`.
+- M0, M1 and M2 merged (PRs #1–#9); WD-010 merged (PR #10). WD-011 in progress on branch `wd-011-quality-gate`.
 
 ## Milestone status
 | Milestone | Tasks | Status | Evidence |
 |---|---|---|---|
 | M0 Foundation and spikes | WD-001 to WD-003 | Complete | PRs #1–#3 merged |
 | M1 Offline editor | WD-004 to WD-006 | Complete | PRs #4–#6 merged |
-| M2 Explicit AI | WD-007 to WD-009 | In progress | WD-007 complete |
-| M3 Auto proofreading and beta | WD-010 to WD-012 | Not started | None |
+| M2 Explicit AI | WD-007 to WD-009 | Complete | PRs #7–#9 merged |
+| M3 Auto proofreading and beta | WD-010 to WD-012 | In progress | WD-010 merged (PR #10); WD-011 in progress |
 
 ## Task status
 | Task | Title | Status | Validation evidence |
@@ -23,10 +23,10 @@
 | WD-005 | Multi-document storage and autosave | Complete | 104 unit + 8 Chromium e2e pass |
 | WD-006 | Markdown import/export | Complete | 124 unit + 14 Chromium e2e pass |
 | WD-007 | Authenticated AI service boundary | Complete | 44 server tests pass (166 total); live curl flow verified |
-| WD-008 | Context resolution and AI menu | Not started | Not executed |
-| WD-009 | Inline AI suggestions | Not started | Not executed |
-| WD-010 | Opt-in auto proofreading | Not started | Not executed |
-| WD-011 | Quality/accessibility/security gate | Not started | Not executed |
+| WD-008 | Context resolution and AI menu | Complete | 174 unit + 19 Chromium e2e; live run |
+| WD-009 | Inline AI suggestions | Complete | Shipped with WD-008 (PR #8) |
+| WD-010 | Opt-in auto proofreading | Complete | 181 unit + 23 Chromium e2e; live run with real Claude |
+| WD-011 | Quality/accessibility/security gate | In progress | 76 e2e on Chromium/Firefox/WebKit; 25k-word check; outage e2e; secrets scan |
 | WD-012 | Hosted private beta | Not started | Not executed |
 
 ## Evidence log
@@ -66,6 +66,13 @@
 | 2026-10-10 | WD-010 | `pnpm test` | exit 0, 181/181 passed (13 files) | Local | New: completedSentence cases, background annotation display/reveal, stale pruning |
 | 2026-10-10 | WD-010 | `pnpm test:e2e` | exit 0, 23/23 passed | Local Chromium | 4 new: off by default; 3 s boundary + quiet underline + caret unchanged + click review + axe; unfinished/resumed/dedupe; off clears + quota pause |
 | 2026-10-10 | WD-008/010 | Live Playwright run, local API with real Claude (`AI_PROVIDER=anthropic`) | pass | Local Chromium | Sign-in link → ⌘J proofread → accept; background check underlined a typo sentence → click → accept. 2 requests, ~$0.0002 total, logs metadata-only |
+| 2026-10-15 | WD-011 | `pnpm test:e2e --project=firefox --project=webkit` before fix | Firefox 23/23; WebKit 9 failed | Local, Playwright Firefox + WebKit 27.2 | Every menu click in WebKit closed the menu first |
+| 2026-10-15 | WD-011 | `pnpm format:check` / `lint` / `typecheck` / `build` | exit 0 each | Local | Branch wd-011-quality-gate |
+| 2026-10-15 | WD-011 | `pnpm test` | exit 0, 181/181 passed (13 files) | Local | |
+| 2026-10-15 | WD-011 | `pnpm test:e2e` | exit 0, 76 passed, 2 skipped | Local Chromium, Firefox, WebKit | Skipped = 25k-word check on Firefox/WebKit (no Long Tasks API) |
+| 2026-10-15 | WD-011 | `pnpm test:e2e e2e/performance.spec.ts --project=chromium --repeat-each=3` | 3/3 pass; longest task 53, 52, 52 ms | Local Chromium, Vite dev build | NFR-004 budget 100 ms |
+| 2026-10-15 | WD-011 | Secrets scan: `git log -p --all` for Anthropic/OpenRouter/Resend/AWS key patterns and private keys; `git ls-files` for .env/.db; `dist/` for key names | No matches | Local | |
+| 2026-10-15 | WD-011 | Log review: every `console.*` in `server/` and `src/` | Metadata only | Local | AI log = requestId/action/outcome/ms/cost; dev mailer prints links only outside production; mail errors log `resend <status>` only |
 | 2026-10-09 | WD-001 | GitHub Actions CI on PR #1 | pass (20s) | https://github.com/Omar12/writedown/actions/runs/38003203895 | ubuntu-latest |
 
 ## Open decisions
@@ -156,6 +163,15 @@
 - Acceptance: no requests when off, before 3 s, on an unfinished sentence, after resumed typing, or for a repeated sentence (e2e); no popup, focus or caret change on response (e2e); stale responses discarded (WD-003/008 tests; the shared engine now also drops shown suggestions whose text changed); quota errors pause checks (e2e). IME: skipped while `view.composing`; not tested with a real IME.
 - Bugs found and fixed: (1) the sentence still being typed ("…here. And") hid the finished sentence before it, so nothing was checked (e2e caught it; unit case added, mutation-checked); (2) the review's screen-reader text read "good.. Suggested" (seen in the live run).
 - Not done / limitations: Chromium only; no real-IME test; background checks of long paragraphs check only the last finished sentence at each pause (earlier unchecked sentences in the same pause are skipped); annotations have a `title` tooltip but no screen-reader announcement on arrival (by design: silent), so finding them needs the underline or ⌘J on the sentence.
+
+## WD-011 record (in progress)
+- Status: in progress. Requirements so far: NFR-002, NFR-004, NFR-005, NFR-006, NFR-007, NFR-008.
+- Changed files: `playwright.config.ts`, `.github/workflows/ci.yml`, `AGENTS.md`, `src/ai/AiMenu.tsx`, `src/documents/{DocumentSwitcher.tsx,useWorkspace.ts}`, `src/index.css`, `e2e/{performance,ai,documents}.spec.ts`.
+- Browser matrix: e2e now runs on Chromium, Firefox and WebKit, locally and in CI. Edge is Chromium-based and not run separately.
+- Bugs found and fixed: (1) Safari doesn't focus a button on click, so focus left the documents panel and the AI menu with no `relatedTarget` and their `onBlur` closed them before the click landed. No menu action worked in WebKit (9 of 23 e2e failed). The containers now have `tabIndex={-1}`, so the click focuses them. (2) WD-006 gap: opening, creating, importing or deleting from the switcher left focus on the page body. The new editor now takes focus.
+- Added checks: 25,000-word responsiveness (Chromium Long Tasks; longest 53 ms against a 100 ms budget); AI outage (API unreachable, then provider 503: message only; typing, autosave and export still work).
+- Remaining: manual 200% zoom and 1024 px check; screen-reader spot-check (VoiceOver) of the menu, review bar and background underline; real-browser shortcut check for UX-001 (Playwright doesn't trigger browser-level shortcuts, so ⌘J vs Firefox/Safari Downloads is still unverified); real-IME test; autosave on fast navigation (500 ms debounce, `pagehide` flush not verified); 25k-word check against a production build.
+- Repair attempts: performance test 2 (test-side: wrong paragraph index; lint on a comma expression). Outage test 1 (test-side: wrong expected filename).
 
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
