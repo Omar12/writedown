@@ -140,3 +140,26 @@ test('without tab coordination, a stale save warns instead of overwriting', asyn
 	await expect(doc(page)).toHaveText('Base theirs');
 	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
 });
+
+test('opening, creating and deleting from the switcher puts focus in the text', async ({
+	page,
+}) => {
+	await page.goto('/');
+	await newDocument(page, 'One');
+	await switcher(page).click();
+	await page.getByRole('button', { name: '+ New document' }).click();
+	await expect(doc(page)).toBeFocused();
+	await page.keyboard.type('Two');
+	await expect(page.getByRole('status', { name: 'Save status' })).toHaveText('Saved');
+
+	await switcher(page).click();
+	await page.getByRole('button', { name: 'One', exact: true }).click();
+	await expect(doc(page)).toHaveText('One');
+	await expect(doc(page)).toBeFocused();
+
+	await switcher(page).click();
+	await page.getByRole('button', { name: 'Delete One' }).click();
+	await page.getByRole('button', { name: 'Delete', exact: true }).click();
+	await expect(doc(page)).toHaveText('Two');
+	await expect(doc(page)).toBeFocused();
+});

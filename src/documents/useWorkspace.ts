@@ -36,6 +36,8 @@ export function useWorkspace() {
 	const editor = useRef<Editor | null>(null);
 	const channel = useRef<ReturnType<typeof openTabChannel> | null>(null);
 	const loads = useRef(0);
+	/** The next editor takes focus: set by user actions whose button disappears (open, new, import, delete). */
+	const focusNext = useRef(false);
 
 	// The saved record carries the new title and updatedAt.
 	const setSaveState = (saveState: SaveState, doc: DocumentRecord) =>
@@ -87,10 +89,18 @@ export function useWorkspace() {
 	/** Save the current document; false means it could not be saved and must stay open. */
 	const flush = useCallback(async () => (saver.current ? saver.current.flush() : true), []);
 
-	const open = useCallback(async (id: string) => (await flush()) && show(id), [flush, show]);
+	const open = useCallback(
+		async (id: string) => {
+			if (!(await flush())) return false;
+			focusNext.current = true;
+			return show(id);
+		},
+		[flush, show],
+	);
 
 	const create = useCallback(async () => {
 		if (!(await flush())) return false;
+		focusNext.current = true;
 		return show((await createDocument()).id);
 	}, [flush, show]);
 
@@ -100,7 +110,10 @@ export function useWorkspace() {
 			if (isCurrent) saver.current!.dispose();
 			await deleteDocument(id);
 			channel.current?.post({ type: 'deleted', docId: id });
-			if (isCurrent) await showMostRecent();
+			if (isCurrent) {
+				focusNext.current = true;
+				await showMostRecent();
+			} else editor.current?.commands.focus();
 		},
 		[showMostRecent],
 	);
@@ -112,6 +125,8 @@ export function useWorkspace() {
 
 	const onEditorReady = useCallback((e: Editor) => {
 		editor.current = e;
+		if (focusNext.current) e.commands.focus();
+		focusNext.current = false;
 	}, []);
 
 	/** Always creates a new document; never overwrites an existing one. */
@@ -124,6 +139,7 @@ export function useWorkspace() {
 				doc.updatedAt,
 				[],
 			);
+			focusNext.current = true;
 			return show(doc.id);
 		},
 		[flush, show],
