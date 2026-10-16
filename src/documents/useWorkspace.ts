@@ -2,7 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { serializeMarkdown } from '../editor/markdown.ts';
 import { getSuggestionHistory, type HistoryEntry } from '../editor/suggestions.ts';
-import { Autosaver, type SaveState } from './autosave.ts';
+import { Autosaver, stashUnsaved, takeUnsaved, type SaveState } from './autosave.ts';
 import {
 	createDocument,
 	deleteDocument,
@@ -49,6 +49,14 @@ export function useWorkspace() {
 	const show = useCallback(async (id: string, { claim = true } = {}) => {
 		const loaded = await loadDocument(id);
 		if (!loaded) return false;
+		const rescued = takeUnsaved(loaded.doc);
+		if (rescued) {
+			const next = { ...loaded.doc, ...rescued, updatedAt: new Date().toISOString() };
+			// Lost a race with another tab's save: theirs is newer, keep it.
+			loaded.doc = await saveDocument(next, loaded.doc.updatedAt, loaded.history).catch(
+				() => loaded.doc,
+			);
+		}
 		saver.current?.dispose();
 		editor.current = null;
 		const next = new Autosaver(
@@ -188,7 +196,13 @@ export function useWorkspace() {
 		};
 		channel.current = openTabChannel((m) => void onMessage(m));
 
-		const save = () => void saver.current?.flush();
+		const save = () => {
+			const current = saver.current;
+			if (!current) return;
+			const unsaved = current.state === 'conflict' ? null : current.unsaved();
+			if (unsaved) stashUnsaved(current.record, unsaved);
+			void current.flush();
+		};
 		const onVisibility = () => document.visibilityState === 'hidden' && save();
 		document.addEventListener('visibilitychange', onVisibility);
 		window.addEventListener('pagehide', save);

@@ -1,5 +1,6 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { Autosaver, type SaveState } from './autosave.ts';
+import { Autosaver, stashUnsaved, takeUnsaved, type SaveState } from './autosave.ts';
 import { ConflictError, type DocumentRecord, type saveDocument } from './db.ts';
 
 const record: DocumentRecord = {
@@ -134,4 +135,28 @@ test('flush with nothing changed does not write', async () => {
 	const { saver, calls } = setup();
 	expect(await saver.flush()).toBe(true);
 	expect(calls).toHaveLength(0);
+});
+
+test('unsaved() returns the edit until its save resolves', async () => {
+	const { saver, calls, type } = setup();
+	expect(saver.unsaved()).toBeNull();
+	type('a');
+	expect(saver.unsaved()?.markdown).toBe('a');
+	const done = saver.flush();
+	await tick();
+	calls[0].resolve();
+	await done;
+	expect(saver.unsaved()).toBeNull();
+});
+
+test('a stashed edit is restored only onto the record it was made from, once', () => {
+	const edit = { title: 'T', markdown: 'kept', history: [] };
+	stashUnsaved(record, edit);
+	expect(takeUnsaved({ ...record, id: 'other' })).toBeNull(); // not this document: left alone
+	expect(takeUnsaved(record)).toEqual({ title: 'T', markdown: 'kept' });
+	expect(takeUnsaved(record)).toBeNull(); // consumed
+
+	stashUnsaved(record, edit);
+	expect(takeUnsaved({ ...record, updatedAt: '2026-02-01T00:00:00.000Z' })).toBeNull(); // newer save wins
+	expect(takeUnsaved(record)).toBeNull(); // and the stale stash is gone
 });

@@ -163,3 +163,18 @@ test('opening, creating and deleting from the switcher puts focus in the text', 
 	await expect(doc(page)).toHaveText('Two');
 	await expect(doc(page)).toBeFocused();
 });
+
+test('typing then leaving at once still saves (pagehide flush)', async ({ page }) => {
+	await page.goto('/');
+	await newDocument(page, 'Quick');
+	await page.keyboard.type(' exit'); // inside the 500 ms autosave debounce
+	await page.reload();
+	await expect(doc(page)).toHaveText('Quick exit');
+
+	await doc(page).click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' away');
+	await page.goto('about:blank');
+	await page.goto('/');
+	await expect(doc(page)).toHaveText('Quick exit away');
+});
