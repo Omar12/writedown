@@ -233,3 +233,26 @@ test('AI outage: messages only; typing, saving and export keep working (NFR-007)
 	await page.keyboard.press('ControlOrMeta+Shift+e');
 	expect((await download).suggestedFilename()).toBe('Offline text. More.md');
 });
+
+test('switching documents mid-request drops the reply (BR-009)', async ({ page }) => {
+	const calls = await mockApi(page, { reply: (b) => b.targetText.toUpperCase(), delayMs: 600 });
+	await start(page, 'First words.');
+	await page.keyboard.press('ControlOrMeta+j');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('status', { name: 'AI status' })).toHaveText('Proofreading…');
+
+	await page.getByRole('button', { name: /^Documents:/ }).click();
+	await page.getByRole('button', { name: '+ New document' }).click();
+	const doc = page.getByRole('textbox', { name: 'Document' });
+	await doc.click();
+	await page.keyboard.type('Second words.');
+	await page.waitForTimeout(1000); // past the reply
+	await expect(doc).toHaveText('Second words.');
+	await expect(page.locator('ins')).toHaveCount(0);
+
+	await page.getByRole('button', { name: /^Documents:/ }).click();
+	await page.getByRole('button', { name: 'First words.', exact: true }).click();
+	await expect(doc).toHaveText('First words.');
+	await expect(page.locator('ins')).toHaveCount(0);
+	expect(calls).toHaveLength(1);
+});
