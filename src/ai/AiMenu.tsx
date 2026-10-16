@@ -281,6 +281,7 @@ export function AiMenu({ editor, ai, onClose }: { editor: Editor; ai: Ai; onClos
 			role="dialog"
 			aria-labelledby={titleId}
 			style={position}
+			tabIndex={-1}
 			onKeyDown={onKeyDown}
 			onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && onClose()}
 		>

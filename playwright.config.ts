@@ -5,8 +5,11 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: { baseURL: 'http://localhost:5174' },
-	// Firefox, WebKit and Edge join in the WD-011 browser matrix.
-	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+	projects: [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+		{ name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+		{ name: 'webkit', use: { ...devices['Desktop Safari'] } },
+	],
 	webServer: {
 		command: 'pnpm dev --port 5174 --strictPort',
 		url: 'http://localhost:5174',

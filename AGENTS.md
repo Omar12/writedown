@@ -44,7 +44,7 @@ pnpm lint           # eslint
 pnpm typecheck      # tsc (frontend + server)
 pnpm test           # vitest unit + component tests (happy-dom)
 pnpm build          # vite production build
-pnpm test:e2e       # playwright (chromium) + axe; needs `pnpm exec playwright install chromium` once
+pnpm test:e2e       # playwright (chromium, firefox, webkit) + axe; needs `pnpm exec playwright install chromium firefox webkit` once
 pnpm dev            # frontend dev server, proxies /api
 pnpm dev:api        # Hono API on $PORT (default 8787); reads .env; AI_PROVIDER=fake by default (no network, no cost)
 ```

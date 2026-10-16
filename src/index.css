@@ -609,3 +609,9 @@ main {
 		color: #8fdc9a;
 	}
 }
+
+/* Focusable only so Safari keeps clicks inside (it doesn't focus clicked buttons). */
+.switcher-panel:focus,
+.ai-menu:focus {
+	outline: none;
+}

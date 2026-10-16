@@ -86,6 +86,7 @@ export function DocumentSwitcher({
 					className="switcher-panel"
 					role="group"
 					aria-label="Documents"
+					tabIndex={-1}
 					onBlur={(e) =>
 						!e.currentTarget.parentElement!.contains(e.relatedTarget) &&
 						(setOpen(false), setConfirming(null))
