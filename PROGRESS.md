@@ -27,7 +27,7 @@
 | WD-009 | Inline AI suggestions | Complete | Shipped with WD-008 (PR #8) |
 | WD-010 | Opt-in auto proofreading | Complete | 181 unit + 23 Chromium e2e; live run with real Claude |
 | WD-011 | Quality/accessibility/security gate | In progress (automated gate done; manual checks left) | 183 unit + 91 e2e on Chromium/Firefox/WebKit; layout/zoom; pagehide flush; BR-009; outage e2e; secrets scan |
-| WD-012 | Hosted private beta | Not started | Not executed |
+| WD-012 | Hosted private beta | In progress (deploy prep done; not deployed) | Production server serves `dist/` (local curl smoke); Dockerfile + fly.toml + RUNBOOK.md |
 
 ## Evidence log
 | Date/time | Task | Command/check | Result | Source | Notes |
@@ -91,7 +91,7 @@
 | HIST-001 | Persist suggestion history | Saved with the document in a separate store, never exported. "Restore original" action not requested | WD-005 | Resolved by owner 2026-10-09 |
 | OPS-001 | Privacy/retention | Standard API retention: up to 30 days, not used for training; up to 2 years if flagged by trust and safety or required by law (owner 2026-10-09; source: platform.claude.com/docs/en/manage-claude/api-and-data-retention). Disclosure text in TECH_SPEC §AI disclosure; shown in WD-008 | WD-008 | Resolved (UI pending) |
 | AI-001 | Model per task | Haiku 5.5 for proofreading, Sonnet 5.5 for rewrite/expand/custom (see TECH_SPEC §8) | WD-007 | Proposed; owner asked for a recommendation |
-| TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting still open | WD-012 | Partially resolved |
+| TECH-002 | Hosting and runtime | Runtime: Vite + React + Hono, pnpm (owner-approved 2026-10-09). Hosting: Fly.io, one machine + volume for SQLite (owner 2026-10-17) | WD-012 | Resolved |
 
 ## WD-001 record
 - Status: complete. Requirements: NFR-001, NFR-002, NFR-005, NFR-008, TECH-001.
@@ -189,9 +189,15 @@
   4. Real browser zoom at 200% in Safari and Firefox (a quick look to confirm the emulation).
 - Repair attempts: performance test 2 (test-side: wrong paragraph index; lint on a comma expression). Outage test 1 (test-side: wrong expected filename). BR-009 test 1 (test-side: typed before focusing the new editor). Pagehide flush 3: (1) unchecked IndexedDB write, fixed Chromium only; (2) plus `tx.commit()`, fixed Firefox, WebKit still failed; (3) `localStorage` stash, passes all three (the IndexedDB changes were reverted).
 
+## WD-012 record (in progress: deploy prep done, not deployed)
+- Changed files: `server/index.ts` (production serves `dist/` from the same origin as `/api`), `Dockerfile`, `.dockerignore`, `fly.toml`, `RUNBOOK.md`.
+- Verified locally (2026-10-17): `pnpm build`, then `NODE_ENV=production node server/index.ts`: `/` 200 HTML, built JS asset 200, `/api/health` 200, `/api/auth/me` 401, unknown paths 404.
+- Not verified: `docker build` (Docker daemon not running locally) and anything hosted.
+- Blocked on: a Resend-verified sending domain. Then: `fly` setup and deploy per RUNBOOK.md, smoke checklist, rollback drill.
+
 ## Current blockers
 - Nothing blocks writing the specifications or initializing non-billable local scaffolding.
-- Private-beta deployment needs: a Resend-verified sending domain and hosting (TECH-002). Real Claude calls verified 2026-10-10.
+- Private-beta deployment needs: a Resend-verified sending domain. Hosting chosen (Fly.io). Real Claude calls verified 2026-10-10.
 - Final shortcut acceptance depends on UX-001 browser verification.
 
 ## Update template
