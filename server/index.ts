@@ -1,4 +1,6 @@
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { Hono } from 'hono';
 import { createAnthropicProvider } from './ai/anthropic.ts';
 import { createOpenRouterProvider } from './ai/openrouter.ts';
 import { fakeProvider } from './ai/types.ts';
@@ -22,7 +24,12 @@ const mailer = config.resendApiKey
 		? null
 		: consoleMailer;
 
-const app = createApp({ config, store: openStore(config.databasePath), provider, mailer });
+const app = new Hono().route(
+	'/',
+	createApp({ config, store: openStore(config.databasePath), provider, mailer }),
+);
+// In production one process serves both the API and the built app, so they share APP_ORIGIN.
+if (config.production) app.use('*', serveStatic({ root: './dist' }));
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, () =>
 	console.log(`API listening on http://localhost:${port} (AI provider: ${config.aiProvider})`),

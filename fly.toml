@@ -1,0 +1,26 @@
+# Fly.io config for the private beta. Secrets are set with `fly secrets set`, never here (see RUNBOOK.md).
+app = "writedown"
+primary_region = "iad"
+
+[build]
+
+[env]
+  DATABASE_PATH = "/data/writedown-server.db"
+
+[mounts]
+  source = "writedown_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
